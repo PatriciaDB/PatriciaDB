@@ -1,0 +1,32 @@
+package io.patriciadb;
+
+public interface Transaction extends ReadTransaction, Releasable {
+
+    /**
+     * Open a Patricia Merkle Trie storage, throwing an exception if it doesn't exist
+     * @param storageId the storage Id
+     * @return An existing storage
+     */
+    Storage openStorage(byte[] storageId);
+
+    /**
+     * Create a new storage, failing if it already exists
+     * @param storageId the storage name
+     * @return A new storage
+     */
+    Storage createStorage(byte[] storageId);
+
+    /**
+     * Create or open an existing storage
+     * @param storageId the name of the storage
+     * @return the storage
+     */
+    Storage createOrOpenStorage(byte[] storageId);
+
+    /**
+     * Commit all the changes made to all the storages
+     * @param blockHash the new blockHash which contained the transactions
+     */
+    void commit(byte[] blockHash);
+
+}

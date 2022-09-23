@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<meta http-equiv="x-ua-compatible" content="IE=edge"/>
+<title>Test results - PurgeBlockUnitTest</title>
+<link href="../css/base-style.css" rel="stylesheet" type="text/css"/>
+<link href="../css/style.css" rel="stylesheet" type="text/css"/>
+<script src="../js/report.js" type="text/javascript"></script>
+</head>
+<body>
+<div id="content">
+<h1>PurgeBlockUnitTest</h1>
+<div class="breadcrumbs">
+<a href="../index.html">all</a> &gt; 
+<a href="../packages/io.patriciadb.html">io.patriciadb</a> &gt; PurgeBlockUnitTest</div>
+<div id="summary">
+<table>
+<tr>
+<td>
+<div class="summaryGroup">
+<table>
+<tr>
+<td>
+<div class="infoBox" id="tests">
+<div class="counter">1</div>
+<p>tests</p>
+</div>
+</td>
+<td>
+<div class="infoBox" id="failures">
+<div class="counter">0</div>
+<p>failures</p>
+</div>
+</td>
+<td>
+<div class="infoBox" id="ignored">
+<div class="counter">0</div>
+<p>ignored</p>
+</div>
+</td>
+<td>
+<div class="infoBox" id="duration">
+<div class="counter">0.209s</div>
+<p>duration</p>
+</div>
+</td>
+</tr>
+</table>
+</div>
+</td>
+<td>
+<div class="infoBox success" id="successRate">
+<div class="percent">100%</div>
+<p>successful</p>
+</div>
+</td>
+</tr>
+</table>
+</div>
+<div id="tabs">
+<ul class="tabLinks">
+<li>
+<a href="#tab0">Tests</a>
+</li>
+<li>
+<a href="#tab1">Standard output</a>
+</li>
+</ul>
+<div id="tab0" class="tab">
+<h2>Tests</h2>
+<table>
+<thead>
+<tr>
+<th>Test</th>
+<th>Duration</th>
+<th>Result</th>
+</tr>
+</thead>
+<tr>
+<td class="success">basicPurgeTest()</td>
+<td class="success">0.209s</td>
+<td class="success">passed</td>
+</tr>
+</table>
+</div>
+<div id="tab1" class="tab">
+<h2>Standard output</h2>
+<span class="code">
+<pre>2022-09-22 17:10:02,892 [Test worker] DEBUG io.patriciadb.core.TransactionImp - Persisted storage [73:74:6f:72:61:67:65:31] rootId 1000
+2022-09-22 17:10:02,893 [Test worker] DEBUG io.patriciadb.core.TransactionImp - Commit Prepare - New nodes count 2, Lost Nodes Reference 0
+2022-09-22 17:10:02,896 [Test worker] DEBUG io.patriciadb.core.TransactionImp - Commit completed
+BlockInfoRecord{blockHash=[98, 108, 111, 99, 107, 48], parentBlockHash=[], blockNumber=1, creationTime=2022-09-22T16:10:02.893Z, attachment='', newNodeIdsCardinality='2', lostNodeIdsCardinality='0'}
+{1000,1001}
+{}
+2022-09-22 17:10:02,904 [Test worker] DEBUG io.patriciadb.core.TransactionImp - Persisted storage [73:74:6f:72:61:67:65:31] rootId 1008
+2022-09-22 17:10:02,904 [Test worker] DEBUG io.patriciadb.core.TransactionImp - Commit Prepare - New nodes count 3, Lost Nodes Reference 2
+2022-09-22 17:10:02,905 [Test worker] DEBUG io.patriciadb.core.TransactionImp - Commit completed
+BlockInfoRecord{blockHash=[98, 108, 111, 99, 107, 49], parentBlockHash=[98, 108, 111, 99, 107, 48], blockNumber=2, creationTime=2022-09-22T16:10:02.904Z, attachment='', newNodeIdsCardinality='3', lostNodeIdsCardinality='2'}
+{1007,1008,1009}
+{1000,1001}
+2022-09-22 17:10:02,906 [Test worker] DEBUG io.patriciadb.core.TransactionImp - Persisted storage [73:74:6f:72:61:67:65:31] rootId 1011
+2022-09-22 17:10:02,906 [Test worker] DEBUG io.patriciadb.core.TransactionImp - Commit Prepare - New nodes count 2, Lost Nodes Reference 2
+2022-09-22 17:10:02,906 [Test worker] DEBUG io.patriciadb.core.TransactionImp - Commit completed
+BlockInfoRecord{blockHash=[98, 108, 111, 99, 107, 50], parentBlockHash=[98, 108, 111, 99, 107, 49], blockNumber=3, creationTime=2022-09-22T16:10:02.906Z, attachment='', newNodeIdsCardinality='2', lostNodeIdsCardinality='2'}
+{1011,1012}
+{1008,1009}
+Current state
+Block 0= BlockInfoRecord{blockHash=[98, 108, 111, 99, 107, 48], parentBlockHash=[], blockNumber=1, creationTime=2022-09-22T16:10:02.893Z, attachment='', newNodeIdsCardinality='2', lostNodeIdsCardinality='0'}
+{1000,1001}
+{}
+Block 1= BlockInfoRecord{blockHash=[98, 108, 111, 99, 107, 49], parentBlockHash=[98, 108, 111, 99, 107, 48], blockNumber=2, creationTime=2022-09-22T16:10:02.904Z, attachment='', newNodeIdsCardinality='3', lostNodeIdsCardinality='2'}
+{1007,1008,1009}
+{1000,1001}
+Block 2= BlockInfoRecord{blockHash=[98, 108, 111, 99, 107, 50], parentBlockHash=[98, 108, 111, 99, 107, 49], blockNumber=3, creationTime=2022-09-22T16:10:02.906Z, attachment='', newNodeIdsCardinality='2', lostNodeIdsCardinality='2'}
+{1011,1012}
+{1008,1009}
+Purging block1
+2022-09-22 17:10:02,909 [Test worker] DEBUG io.patriciadb.core.PatriciaDBImp - Deleting 2 nodes from transaction history id [98, 108, 111, 99, 107, 49]
+New state
+Block 0= BlockInfoRecord{blockHash=[98, 108, 111, 99, 107, 48], parentBlockHash=[], blockNumber=1, creationTime=2022-09-22T16:10:02.893Z, attachment='', newNodeIdsCardinality='2', lostNodeIdsCardinality='0'}
+{1000,1001}
+{}
+Block 2= BlockInfoRecord{blockHash=[98, 108, 111, 99, 107, 50], parentBlockHash=[98, 108, 111, 99, 107, 48], blockNumber=3, creationTime=2022-09-22T16:10:02.906Z, attachment='', newNodeIdsCardinality='3', lostNodeIdsCardinality='2'}
+{1007,1011,1012}
+{1000,1001}
+</pre>
+</span>
+</div>
+</div>
+<div id="footer">
+<p>
+<div>
+<label class="hidden" id="label-for-line-wrapping-toggle" for="line-wrapping-toggle">Wrap lines
+<input id="line-wrapping-toggle" type="checkbox" autocomplete="off"/>
+</label>
+</div>Generated by 
+<a href="http://www.gradle.org">Gradle 7.4</a> at 22 Sept 2022, 17:10:02</p>
+</div>
+</div>
+</body>
+</html>
