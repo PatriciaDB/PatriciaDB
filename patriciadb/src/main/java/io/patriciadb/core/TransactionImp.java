@@ -1,6 +1,7 @@
 package io.patriciadb.core;
 
 import io.patriciadb.Storage;
+import io.patriciadb.StorageNotFoundException;
 import io.patriciadb.Transaction;
 import io.patriciadb.core.blocktable.BlockEntity;
 import io.patriciadb.core.blocktable.BlockTable;
@@ -16,7 +17,7 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.time.Instant;
-import java.util.concurrent.CompletableFuture;
+import java.util.Arrays;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class TransactionImp implements Transaction {
@@ -32,7 +33,7 @@ public class TransactionImp implements Transaction {
         this.transaction = transaction;
         this.blockTable = blockTable;
         this.parentEntity = parentEntity;
-        this.storageIndex = PatriciaMerkleTrie.openOrCreate(Formats.ETHEREUM, parentEntity.getIndexRootNodeId(), transaction, persistedNodeObserverTracker);
+        this.storageIndex = PatriciaMerkleTrie.openOrCreate(Formats.PLAIN, parentEntity.getIndexRootNodeId(), transaction, persistedNodeObserverTracker);
     }
 
     @Override
@@ -45,7 +46,7 @@ public class TransactionImp implements Transaction {
         return tries.computeIfAbsent(Bytes.wrap(storageId), k -> {
             var res = storageIndex.get(storageId);
             if (res == null) {
-                throw new RuntimeException("Storage not found");
+                throw new StorageNotFoundException("Storage "+ Arrays.toString(storageId)+" not found");
             }
             var trie = PatriciaMerkleTrie.open(Formats.ETHEREUM, VarInt.getVarLong(ByteBuffer.wrap(res)), transaction, persistedNodeObserverTracker);
             return new StorageImp(trie);

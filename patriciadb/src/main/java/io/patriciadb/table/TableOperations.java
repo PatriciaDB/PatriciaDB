@@ -22,7 +22,7 @@ public class TableOperations {
 
     public static <E extends Entity> boolean delete(TableContext<E> context, BlockWriter writer, long primaryKey) {
         var accountOpt = get(context, writer, primaryKey);
-        if (!accountOpt.isPresent()) {
+        if (accountOpt.isEmpty()) {
             return false;
         }
         context.getPrimaryIndex().delete(primaryKey);

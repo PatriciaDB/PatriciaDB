@@ -1,9 +1,6 @@
 package io.patriciadb.core;
 
-import io.patriciadb.BlockInfo;
-import io.patriciadb.PatriciaDB;
-import io.patriciadb.Snapshot;
-import io.patriciadb.Transaction;
+import io.patriciadb.*;
 import io.patriciadb.core.blocktable.BlockEntity;
 import io.patriciadb.core.blocktable.BlockTable;
 import io.patriciadb.fs.PatriciaFileSystem;
@@ -40,8 +37,19 @@ public class PatriciaDBImp implements PatriciaDB {
     }
 
     @Override
-    public Snapshot readTransaction(byte[] blockHash) {
-        return null;
+    public ReadTransaction readTransaction(byte[] blockHash) {
+        var snapshot = fileSystem.getSnapshot();
+        try {
+            var blockTable = BlockTable.openReadOnly(snapshot);
+            var blockInfo = blockTable.findByBlockHash(blockHash);
+            if (blockInfo.isEmpty()) {
+                throw new IllegalArgumentException("BlockHash not found " + Arrays.toString(blockHash));
+            }
+            return new ReadTransactionImp(snapshot, blockTable, blockInfo.get());
+        } catch (Throwable t) {
+            snapshot.release();
+            throw ExceptionUtils.sneakyThrow(t);
+        }
     }
 
     @Override
@@ -80,41 +88,7 @@ public class PatriciaDBImp implements PatriciaDB {
 
     @Override
     public void purgeBlockData(byte[] blockHash) {
-        fileSystem.startTransaction(tr -> {
-            var blockTable = BlockTable.open(tr);
-            var blockOpt = blockTable.findByBlockHash(blockHash);
-            if (blockOpt.isEmpty()) {
-                throw new IllegalArgumentException("Block not found");
-            }
-            var childBlocks = blockTable.findByParentBlockHash(blockHash);
-            var block = blockOpt.get();
-            var newNodeIds = BitMapUtils.deserialize(block.getNewNodeIds());
-            var lostNodeIds = BitMapUtils.deserialize(block.getLostNodeIds());
-
-            var nodeToDelete = new Roaring64NavigableMap(false);
-            nodeToDelete.or(newNodeIds);
-            for (var childBlock : childBlocks) {
-                childBlock.setParentBlockHash(block.getParentBlockHash());
-                var childLostNodes = BitMapUtils.deserialize(childBlock.getLostNodeIds());
-                var childNewNodes = BitMapUtils.deserialize(childBlock.getNewNodeIds());
-                nodeToDelete.and(childLostNodes);
-                childNewNodes.or(newNodeIds);
-                childNewNodes.andNot(childLostNodes);
-                childLostNodes.andNot(newNodeIds);
-                childLostNodes.or(lostNodeIds);
-
-                childBlock.setNewNodeIds(BitMapUtils.serialize(childNewNodes));
-                childBlock.setLostNodeIds(BitMapUtils.serialize(childLostNodes));
-            }
-            log.debug("Deleting {} nodes from transaction history id {}", nodeToDelete.getLongCardinality(), Arrays.toString(blockHash));
-            nodeToDelete.forEach(tr::delete);
-
-            for (var childBlock : childBlocks) {
-                blockTable.update(childBlock);
-            }
-            blockTable.delete(block.getPrimaryKey());
-            return true;
-        });
+        fileSystem.startTransaction(tr -> BlockPurger.purgeBlock(tr, blockHash));
     }
 
     @Override

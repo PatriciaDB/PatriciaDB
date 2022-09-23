@@ -1,7 +1,14 @@
 package io.patriciadb;
 
-public interface ReadTransaction {
+public interface ReadTransaction extends Releasable{
 
-    StorageRead openStorage(byte[] collectionName);
+    /**
+     * Open a storage by its name
+     *
+     * @param storeId the storeId
+     * @return the readonly storage
+     * @throws StorageNotFoundException if the store is not found
+     */
+    StorageRead openStorage(byte[] storeId);
 
 }

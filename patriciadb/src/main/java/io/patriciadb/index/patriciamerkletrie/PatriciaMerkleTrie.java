@@ -23,7 +23,7 @@ public class PatriciaMerkleTrie {
         this.nodeLoader = nodeLoader;
         this.format = format;
         this.persistedNodeObserver = persistedNodeObserver;
-        this.root = root;
+        this.root = root == null ? EmptyNode.INSTANCE : root;
     }
 
     public static PatriciaMerkleTrie open(Format format, long rootId, BlockReader reader) {
@@ -37,7 +37,7 @@ public class PatriciaMerkleTrie {
     }
 
     public static PatriciaMerkleTrie openOrCreate(Format format, long rootId, BlockReader reader, PersistedNodeObserver persistedNodeObserver) {
-        if(rootId == 0) {
+        if (rootId == 0) {
             return createNew(format, persistedNodeObserver);
         } else {
             return open(format, rootId, reader, persistedNodeObserver);
@@ -82,14 +82,21 @@ public class PatriciaMerkleTrie {
 
     public byte[] get(byte[] key) {
         var visitor = new FindVisitor(nodeLoader);
-        return root.apply(visitor, Nibble.forKey(key));
+        byte[] value = root.apply(visitor, Nibble.forKey(key));
+        return value != null  ? value.clone() : null;
     }
 
     public byte[] getRootHash() {
+        if (!format.isNodeHashingSupported()) {
+            throw new UnsupportedOperationException("This format does not support node hashing: "+format.getClass().getSimpleName());
+        }
         return format.generateRootHash(nodeLoader, root);
     }
 
     public long persist(BlockWriter writer) {
+        if (format.isNodeHashingSupported()) {
+            format.generateRootHash(nodeLoader, root);
+        }
         return SerializerPersisterVisitor.persist(writer, format.storageSerializer(), root, persistedNodeObserver);
     }
 

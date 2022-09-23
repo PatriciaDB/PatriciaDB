@@ -4,7 +4,8 @@ import io.patriciadb.index.patriciamerkletrie.io.NodeLoader;
 import io.patriciadb.index.patriciamerkletrie.nodes.Node;
 
 public interface Format {
-    Hasher hasher();
+
+    boolean isNodeHashingSupported();
 
     byte[] generateRootHash(NodeLoader nodeLoader, Node root);
 

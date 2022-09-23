@@ -36,7 +36,7 @@ public class EthStorageSerializer implements StorageSerializer {
             buffer.put((byte) HEADER_NODE_WITH_HASH);
             buffer.put(node.getHash());
         } else {
-            buffer = ByteBuffer.allocate(Byte.BYTES+data.length);
+            buffer = ByteBuffer.allocate(Byte.BYTES + data.length);
             buffer.put((byte) HEADER_NODE_WITHOUT_HASH);
         }
         buffer.put(data);
@@ -69,7 +69,7 @@ public class EthStorageSerializer implements StorageSerializer {
         }
     }
 
-    private  class LazyHashNodePair implements EthHeaderNodePair {
+    private class LazyHashNodePair implements EthHeaderNodePair {
         private final ByteBuffer buffer;
         private final long nodeId;
         private final EthNodeHeader header;
@@ -77,14 +77,14 @@ public class EthStorageSerializer implements StorageSerializer {
 
         public LazyHashNodePair(ByteBuffer buffer, long nodeId) {
             int headerVal = buffer.get();
-            if(headerVal==HEADER_NODE_WITH_HASH) {
+            if (headerVal == HEADER_NODE_WITH_HASH) {
                 byte[] hash = new byte[hashLength];
                 buffer.get(hash);
                 header = new EthNodeHeaderImp(hash);
-            } else if(headerVal==HEADER_NODE_WITHOUT_HASH){
+            } else if (headerVal == HEADER_NODE_WITHOUT_HASH) {
                 header = EMPTY_HEADER;
             } else {
-                throw new IllegalArgumentException("Invalid Header value: "+headerVal);
+                throw new IllegalArgumentException("Invalid Header value: " + headerVal);
             }
 
             this.nodeId = nodeId;
@@ -98,9 +98,9 @@ public class EthStorageSerializer implements StorageSerializer {
 
         @Override
         public Node getNode() {
-            if(node ==null) {
-                node =(Node) NodeDeserialiser.deserialise(buffer);
-                if(header.getHash().isPresent()) {
+            if (node == null) {
+                node = (Node) NodeDeserialiser.deserialise(buffer);
+                if (header.getHash().isPresent()) {
                     node.setHash(header.getHash().get());
                 }
                 node.setNodeId(nodeId);

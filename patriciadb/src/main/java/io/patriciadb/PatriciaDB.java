@@ -1,7 +1,7 @@
 package io.patriciadb;
 
-import io.patriciadb.core.blocktable.BlockTable;
 import io.patriciadb.core.PatriciaDBImp;
+import io.patriciadb.core.blocktable.BlockTable;
 import io.patriciadb.fs.PatriciaFileSystem;
 
 import java.util.List;
@@ -33,7 +33,7 @@ public interface PatriciaDB {
      * @param blockHash the hash of the block
      * @return a read only snapshot of the block
      */
-    Snapshot readTransaction(byte[] blockHash);
+    ReadTransaction readTransaction(byte[] blockHash);
 
     /**
      * Start a new transaction which the starting point is the blockHash use to start a transaction
@@ -49,7 +49,7 @@ public interface PatriciaDB {
     Transaction startTransaction(); // For the genesis block which don't have a parent block
 
     /**
-     * Purge the blockInfos, removing all the nodes from the file system that are not referenced anymore
+     * Delete the block/transaction, removing all the nodes from the file system that are not referenced anymore
      * @param blockHash the blockHash/transaction to remove
      */
     void purgeBlockData(byte[] blockHash);

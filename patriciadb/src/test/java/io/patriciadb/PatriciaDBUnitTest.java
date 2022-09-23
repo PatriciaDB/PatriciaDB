@@ -60,45 +60,6 @@ public class PatriciaDBUnitTest {
     }
 
 
-    @Test
-    public void basicTest2() throws Exception {
-        var fs =new SimpleFileSystem();
-
-        var patricDB = PatriciaDB.createNew(fs);
-        {
-            var genesis = patricDB.startTransaction();
-            try {
-                var state = genesis.createOrOpenStorage("state".getBytes());
-                state.put("hello".getBytes(), "world".getBytes());
-                genesis.commit("state0".getBytes());
-            } finally {
-                genesis.release();
-            }
-        }
-
-        for (int block = 0; block <= 10000; block++) {
-            System.out.println("Block " + block);
-            var transaction = patricDB.startTransaction(("state" + block).getBytes());
-            try {
-                for (int storage = 0; storage < 100; storage++) {
-                    var state = transaction.createOrOpenStorage(("storage" + storage).getBytes());
-                    byte[] randomKey = new byte[32];
-                    byte[] randomVal = new byte[32];
-                    for (int i = 0; i < 1000; i++) {
-                        ThreadLocalRandom.current().nextBytes(randomKey);
-                        ThreadLocalRandom.current().nextBytes(randomVal);
-                        state.put(randomKey, randomVal);
-                    }
-
-                }
-
-                transaction.commit(("state" + (block + 1)).getBytes());
-            } finally {
-                transaction.release();
-            }
-        }
-    }
-
 //    @Test
     public void benchmark() throws Exception {
 

@@ -16,10 +16,6 @@ public class EthFormat implements Format {
     private final EthStorageSerializer storageSerializer =new EthStorageSerializer(hasher.hashLength());
 
 
-    @Override
-    public Hasher hasher() {
-        return hasher;
-    }
 
     @Override
     public byte[] generateRootHash(NodeLoader nodeLoader, Node root) {
@@ -31,6 +27,11 @@ public class EthFormat implements Format {
         var rootHash = hasher.hash(RlpEncoder.encode(rlp));
         root.setHash(rootHash);
         return rootHash;
+    }
+
+    @Override
+    public boolean isNodeHashingSupported() {
+        return true;
     }
 
     @Override

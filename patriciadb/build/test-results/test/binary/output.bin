@@ -1,38 +1,0 @@
-ˆ2022-09-22 17:10:02,892 [Test worker] DEBUG io.patriciadb.core.TransactionImp - Persisted storage [73:74:6f:72:61:67:65:31] rootId 1000
-‹2022-09-22 17:10:02,893 [Test worker] DEBUG io.patriciadb.core.TransactionImp - Commit Prepare - New nodes count 2, Lost Nodes Reference 0
-a2022-09-22 17:10:02,896 [Test worker] DEBUG io.patriciadb.core.TransactionImp - Commit completed
-ÇBlockInfoRecord{blockHash=[98, 108, 111, 99, 107, 48], parentBlockHash=[], blockNumber=1, creationTime=2022-09-22T16:10:02.893Z, attachment='', newNodeIdsCardinality='2', lostNodeIdsCardinality='0'}
-{1000,1001}
-{}
-ˆ2022-09-22 17:10:02,904 [Test worker] DEBUG io.patriciadb.core.TransactionImp - Persisted storage [73:74:6f:72:61:67:65:31] rootId 1008
-‹2022-09-22 17:10:02,904 [Test worker] DEBUG io.patriciadb.core.TransactionImp - Commit Prepare - New nodes count 3, Lost Nodes Reference 2
-a2022-09-22 17:10:02,905 [Test worker] DEBUG io.patriciadb.core.TransactionImp - Commit completed
-àBlockInfoRecord{blockHash=[98, 108, 111, 99, 107, 49], parentBlockHash=[98, 108, 111, 99, 107, 48], blockNumber=2, creationTime=2022-09-22T16:10:02.904Z, attachment='', newNodeIdsCardinality='3', lostNodeIdsCardinality='2'}
-{1007,1008,1009}
-{1000,1001}
-ˆ2022-09-22 17:10:02,906 [Test worker] DEBUG io.patriciadb.core.TransactionImp - Persisted storage [73:74:6f:72:61:67:65:31] rootId 1011
-‹2022-09-22 17:10:02,906 [Test worker] DEBUG io.patriciadb.core.TransactionImp - Commit Prepare - New nodes count 2, Lost Nodes Reference 2
-a2022-09-22 17:10:02,906 [Test worker] DEBUG io.patriciadb.core.TransactionImp - Commit completed
-àBlockInfoRecord{blockHash=[98, 108, 111, 99, 107, 50], parentBlockHash=[98, 108, 111, 99, 107, 49], blockNumber=3, creationTime=2022-09-22T16:10:02.906Z, attachment='', newNodeIdsCardinality='2', lostNodeIdsCardinality='2'}
-{1011,1012}
-{1008,1009}
-Current state
-ÐBlock 0= BlockInfoRecord{blockHash=[98, 108, 111, 99, 107, 48], parentBlockHash=[], blockNumber=1, creationTime=2022-09-22T16:10:02.893Z, attachment='', newNodeIdsCardinality='2', lostNodeIdsCardinality='0'}
-{1000,1001}
-{}
-éBlock 1= BlockInfoRecord{blockHash=[98, 108, 111, 99, 107, 49], parentBlockHash=[98, 108, 111, 99, 107, 48], blockNumber=2, creationTime=2022-09-22T16:10:02.904Z, attachment='', newNodeIdsCardinality='3', lostNodeIdsCardinality='2'}
-{1007,1008,1009}
-{1000,1001}
-éBlock 2= BlockInfoRecord{blockHash=[98, 108, 111, 99, 107, 50], parentBlockHash=[98, 108, 111, 99, 107, 49], blockNumber=3, creationTime=2022-09-22T16:10:02.906Z, attachment='', newNodeIdsCardinality='2', lostNodeIdsCardinality='2'}
-{1011,1012}
-{1008,1009}
-Purging block1
-˜2022-09-22 17:10:02,909 [Test worker] DEBUG io.patriciadb.core.PatriciaDBImp - Deleting 2 nodes from transaction history id [98, 108, 111, 99, 107, 49]
-
-New state
-ÐBlock 0= BlockInfoRecord{blockHash=[98, 108, 111, 99, 107, 48], parentBlockHash=[], blockNumber=1, creationTime=2022-09-22T16:10:02.893Z, attachment='', newNodeIdsCardinality='2', lostNodeIdsCardinality='0'}
-{1000,1001}
-{}
-éBlock 2= BlockInfoRecord{blockHash=[98, 108, 111, 99, 107, 50], parentBlockHash=[98, 108, 111, 99, 107, 48], blockNumber=3, creationTime=2022-09-22T16:10:02.906Z, attachment='', newNodeIdsCardinality='3', lostNodeIdsCardinality='2'}
-{1007,1011,1012}
-{1000,1001}
