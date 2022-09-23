@@ -6,6 +6,9 @@ written for different languages.
 
 Can be used by Ethereum full node clients or by other blockchains.
 
+For more information read our wiki:
+https://github.com/PatriciaDB/PatriciaDB/wiki
+
 # Features
 PatriciaDB is new database currently under development offering ACID properties.
 * Fully atomic transactions
