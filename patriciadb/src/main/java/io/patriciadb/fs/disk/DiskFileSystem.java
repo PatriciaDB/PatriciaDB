@@ -21,16 +21,20 @@ import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class DiskFileSystem implements PatriciaFileSystem {
     private final static Logger log = LoggerFactory.getLogger(DiskFileSystem.class);
     private final AppenderDataStorage dataStorage;
     private final DiskDirectory diskMMapDirectory;
-    private final DiskDirectory walDirectory;
+    private final WalDirectory walDirectory;
     private final VersionedDirectory versionedDirectory;
     private final TransactionalDirectory transactionalDirectory;
+    private final ScheduledThreadPoolExecutor executorService;
+    private final ThreadPoolExecutor callbackExecutor;
     private final AtomicBoolean isOpen = new AtomicBoolean(true);
+    private final WalSyncController walSyncController;
 
     public DiskFileSystem(Path dir) throws IOException {
         this(dir, Integer.MAX_VALUE);
@@ -62,6 +66,10 @@ public class DiskFileSystem implements PatriciaFileSystem {
         versionedDirectory = new MvccDirectory(walDirectory);
         transactionalDirectory = new TransactionalDirectoryImp(versionedDirectory);
         dataStorage = DataStorageFactory.openDirectory(dir, maxAppenderSize);
+        executorService = new ScheduledThreadPoolExecutor(1, new FsThreadFactory());
+        callbackExecutor = new ThreadPoolExecutor(1,1,1, TimeUnit.MINUTES, new LinkedBlockingQueue<>());
+        walSyncController = new WalSyncController(walDirectory, dataStorage, this::closeExceptionally,callbackExecutor );
+        executorService.scheduleWithFixedDelay(walSyncController::syncWalJob, 100, 200, TimeUnit.MILLISECONDS);
 
     }
 
@@ -79,10 +87,13 @@ public class DiskFileSystem implements PatriciaFileSystem {
     public synchronized void close() {
         checkState();
         try {
-            sync();
+            executorService.shutdownNow();
+            callbackExecutor.shutdownNow();
+            walSyncController.syncWal();
             dataStorage.close();
             walDirectory.close();
             diskMMapDirectory.close();
+
         } catch (Throwable t) {
             throw new FileSystemError(true, "Failed closing the underline components", t);
         } finally {
@@ -97,10 +108,12 @@ public class DiskFileSystem implements PatriciaFileSystem {
     }
 
     @Override
-    public void sync() {
+    public CompletableFuture<Void> syncNow() {
         checkState();
-        dataStorage.flushAndSync();
-        walDirectory.sync();
+        var callback = walSyncController.registerCallback();
+        walSyncController.setSyncRequest();
+        executorService.execute(walSyncController::setSyncRequest);
+        return callback;
     }
 
     private void checkState() {
@@ -173,6 +186,7 @@ public class DiskFileSystem implements PatriciaFileSystem {
         public void commit() {
             transaction.commit();
             transaction.release();
+            walSyncController.setSyncRequest();
         }
 
         @Override

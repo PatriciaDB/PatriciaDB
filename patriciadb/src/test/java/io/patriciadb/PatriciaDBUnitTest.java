@@ -11,7 +11,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.Security;
 import java.util.Random;
-import java.util.concurrent.ThreadLocalRandom;
 
 public class PatriciaDBUnitTest {
 
@@ -55,7 +54,6 @@ public class PatriciaDBUnitTest {
         } finally {
             block1.release();
         }
-        fs.sync();
         fs.close();
     }
 
@@ -64,6 +62,7 @@ public class PatriciaDBUnitTest {
     public void benchmark() throws Exception {
 
         Path databaseDirectory = Files.createTempDirectory("patriciadb-benchmark");
+        System.out.println(databaseDirectory);
         try {
             var fs = new DiskFileSystem(databaseDirectory, Integer.MAX_VALUE);
 
@@ -99,7 +98,6 @@ public class PatriciaDBUnitTest {
                 } finally {
                     transaction.release();
                 }
-                fs.sync();
                 System.out.printf("Transaction %d time %d%n", block, System.currentTimeMillis() - transactionTime);
             }
             System.out.printf("Total Time %d%n", System.currentTimeMillis() - starttime);

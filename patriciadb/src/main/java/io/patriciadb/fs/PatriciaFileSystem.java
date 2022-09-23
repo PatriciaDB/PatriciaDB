@@ -2,6 +2,7 @@ package io.patriciadb.fs;
 
 import io.patriciadb.utils.ExceptionUtils;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
 public interface PatriciaFileSystem {
@@ -10,7 +11,7 @@ public interface PatriciaFileSystem {
 
     FSTransaction startTransaction();
 
-    void sync();
+    CompletableFuture<Void> syncNow();
 
     default <T> T startTransaction(Function<FSTransaction, T> runnable) {
         var tr = startTransaction();

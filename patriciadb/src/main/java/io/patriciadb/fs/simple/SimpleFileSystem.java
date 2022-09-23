@@ -7,6 +7,7 @@ import io.patriciadb.fs.PatriciaFileSystem;
 
 import java.nio.ByteBuffer;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -31,8 +32,8 @@ public class SimpleFileSystem implements PatriciaFileSystem {
     }
 
     @Override
-    public void sync() {
-        // no effect
+    public CompletableFuture<Void> syncNow() {
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
