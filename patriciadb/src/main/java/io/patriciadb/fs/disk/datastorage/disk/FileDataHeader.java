@@ -5,21 +5,22 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.time.Instant;
 
-public record FileDataHeader(int version, int fileId, Instant createdTime) {
+public record FileDataHeader(int version, int fileId, long sequenceNumber, Instant createdTime) {
     public static final int DATA_HEADER_MAGIC_NUMBER = 0XCAFECAFE;
     public static final int DATA_HEADER_VERSION = 1;
 
-    public static FileDataHeader writeHeader(FileChannel ch, int fileId) throws IOException {
+    public static FileDataHeader writeHeader(FileChannel ch, int fileId, long sequenceNumber) throws IOException {
         var creationTime = Instant.now();
         var header = ByteBuffer.allocate(1024);
         header.putInt(DATA_HEADER_MAGIC_NUMBER);
         header.putInt(DATA_HEADER_VERSION);
         header.putInt(fileId);
         header.putLong(creationTime.toEpochMilli());
+        header.putLong(sequenceNumber);
         header.position(0);
         ch.write(header, 0);
         ch.force(true);
-        return new FileDataHeader(DATA_HEADER_VERSION, fileId, creationTime);
+        return new FileDataHeader(DATA_HEADER_VERSION, fileId, sequenceNumber, creationTime);
     }
 
 
@@ -40,7 +41,8 @@ public record FileDataHeader(int version, int fileId, Instant createdTime) {
         }
         int fileId = buffer.getInt();
         var createTime = Instant.ofEpochMilli(buffer.getLong());
-        return new FileDataHeader(version, fileId, createTime);
+        long sequenceNumber = buffer.getLong();
+        return new FileDataHeader(version, fileId, sequenceNumber, createTime);
     }
 
 }

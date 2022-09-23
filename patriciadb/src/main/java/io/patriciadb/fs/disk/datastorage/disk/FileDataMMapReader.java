@@ -27,7 +27,7 @@ public class FileDataMMapReader implements FileReader {
 
     public ByteBuffer read(int offset) {
         if (offset >= mmapBuffer.capacity()) {
-            throw new StorageIoException("Offset " + offset + " not available");
+            throw new StorageIoException("Offset " + offset + " not available for file id " + channel.getFileId());
         }
         int size = VarInt.getVarInt(mmapBuffer, offset);
         int headerLength = VarInt.varIntSize(size);

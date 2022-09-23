@@ -6,8 +6,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class DataStorageFactory {
 
@@ -37,18 +39,23 @@ public class DataStorageFactory {
             channels.put(dataFileChannel.getFileId(), dataFileChannel);
         }
         if (channels.isEmpty()) {
-            var fileAppenderFactory = new FileAppenderFactoryImp(directory, maxAppenderSize, 1);
+            var fileAppenderFactory = new FileAppenderFactoryImp(directory, maxAppenderSize, 1, 1);
             var currentAppender = fileAppenderFactory.newFileDataAppender();
             return new AppenderDataStorage(List.of(), currentAppender, fileAppenderFactory);
         } else {
             var maxId = channels.keySet().stream().mapToInt(Integer::intValue).max().getAsInt();
-            var maxIdChannel = channels.remove(maxId);
+            var fileSortedBySequenceNumber = channels.values().stream()
+                    .sorted(Comparator.comparingLong(l -> l.getHeader().sequenceNumber()))
+                    .collect(Collectors.toCollection(ArrayList::new));
+            // The file with the biggest sequence (the last created) is the current appender
+            var fileChannelAppender = fileSortedBySequenceNumber.remove(fileSortedBySequenceNumber.size() - 1);
+
             List<FileReader> readers = new ArrayList<>();
-            for (var readerChannel : channels.values()) {
+            for (var readerChannel : fileSortedBySequenceNumber) {
                 readers.add(new FileDataMMapReader(readerChannel));
             }
-            var appender = new FileDataAppender(maxIdChannel, FileDataAppender.DEFAULT_BUFFER_SIZE, FileDataAppender.MMAP_DEFAULT_BLOCK_SIZE, maxAppenderSize);
-            var fileAppenderFactory = new FileAppenderFactoryImp(directory, maxAppenderSize, 1);
+            var appender = new FileDataAppender(fileChannelAppender, FileDataAppender.DEFAULT_BUFFER_SIZE, FileDataAppender.MMAP_DEFAULT_BLOCK_SIZE, maxAppenderSize);
+            var fileAppenderFactory = new FileAppenderFactoryImp(directory, maxAppenderSize, maxId + 1, fileChannelAppender.getHeader().sequenceNumber() + 1);
             return new AppenderDataStorage(readers, appender, fileAppenderFactory);
         }
     }

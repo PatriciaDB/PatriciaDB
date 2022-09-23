@@ -6,12 +6,15 @@ import io.patriciadb.fs.disk.directory.DiskDirectory;
 import org.eclipse.collections.api.LongIterable;
 import org.eclipse.collections.impl.map.mutable.primitive.LongLongHashMap;
 import org.roaringbitmap.longlong.Roaring64NavigableMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class WalDirectory implements DiskDirectory {
+    private final static Logger log = LoggerFactory.getLogger(WalDirectory.class);
     public static final long MAX_WAL_LOG_FILE_SIZE = 50 * 1024 * 1024; //50MB
     private final Directory directory;
     private final LongLongHashMap mergedMaps = new LongLongHashMap();
@@ -26,10 +29,11 @@ public class WalDirectory implements DiskDirectory {
     }
 
     private void checkState() {
-        if(!isOpen.get()) {
+        if (!isOpen.get()) {
             throw new DirectoryError(true, "Directory is closed");
         }
     }
+
     public synchronized Roaring64NavigableMap getFreeBlocksMap() {
         checkState();
         var bitmap = directory.getFreeBlocksMap();
@@ -54,7 +58,7 @@ public class WalDirectory implements DiskDirectory {
     @Override
     public synchronized void close() throws IOException {
         try {
-            sync();
+            sync(true);
             logWriter.close();
         } catch (IOException e) {
             throw new DirectoryError(true, e);
@@ -94,19 +98,26 @@ public class WalDirectory implements DiskDirectory {
      */
     public synchronized void sync() throws DirectoryError {
         checkState();
+        sync(false);
+
+    }
+
+    private synchronized void sync(boolean forceSyncChildDir) throws DirectoryError {
+        checkState();
         try {
-            if (mergedMaps.isEmpty()) {
-                return;
+            if (!mergedMaps.isEmpty()) {
+                logWriter.appendAndSync(mergedMaps);
+                directory.set(mergedMaps);
+                mergedMaps.clear();
             }
-            logWriter.appendAndSync(mergedMaps);
-            directory.set(mergedMaps);
-            if (logWriter.getLogSize() > maxLogWriterSize) {
+            if (logWriter.getLogSize() > maxLogWriterSize || forceSyncChildDir) {
+                log.trace("Sync child directory and cleaning log file");
                 if (directory instanceof DiskDirectory diskDirectory) {
                     diskDirectory.sync();
                 }
                 logWriter.reset();
             }
-            mergedMaps.clear();
+
         } catch (IOException e) {
             throw new DirectoryError(true, e);
         }

@@ -40,6 +40,10 @@ public class FileDataChannel implements Closeable {
         return ch.map(FileChannel.MapMode.READ_ONLY, offset, size);
     }
 
+    public FileDataHeader getHeader() {
+        return header;
+    }
+
     @Override
     public void close() throws IOException {
         ch.close();
@@ -56,7 +60,7 @@ public class FileDataChannel implements Closeable {
     public void force(boolean metadata) throws IOException{
         ch.force(metadata);
     }
-    public static FileDataChannel create(Path path, int fileId) throws IOException{
+    public static FileDataChannel create(Path path, int fileId, long sequenceNumber) throws IOException{
         if(Files.exists(path)) {
             throw new IOException("FileData does exist: "+path);
         }
@@ -67,7 +71,7 @@ public class FileDataChannel implements Closeable {
 
         FileChannel ch = FileChannel.open(path,openOptionSet);
         try {
-            var header = FileDataHeader.writeHeader(ch, fileId);
+            var header = FileDataHeader.writeHeader(ch, fileId, sequenceNumber);
             return new FileDataChannel(path, ch, header, OpenMode.READ_WRITE);
         }catch (Throwable e) {
             ch.close();

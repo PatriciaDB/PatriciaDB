@@ -69,6 +69,7 @@ public class AppenderDataStorage implements DataStorage {
     }
 
     private synchronized FileAppender rollAppenderInternal() throws IOException {
+        currentAppender.flushAndSync();
         var newAppender = fileAppenderFactory.newFileDataAppender();
         readers.put(newAppender.getChannel().getFileId(), newAppender);
         currentAppender = newAppender;
