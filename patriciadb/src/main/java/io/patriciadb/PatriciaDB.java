@@ -55,7 +55,7 @@ public interface PatriciaDB {
     void purgeBlockData(byte[] blockHash);
 
     /**
-     * Get the metadata informations of the transaction/block
+     * Get the metadata of the transaction/block
      * @param blockHash the blockHash
      * @return the blockInfo
      */

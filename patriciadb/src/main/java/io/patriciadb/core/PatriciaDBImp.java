@@ -74,7 +74,7 @@ public class PatriciaDBImp implements PatriciaDB {
         try {
             var blockTable = BlockTable.open(tr);
             var parentBlock = new BlockEntity();
-            parentBlock.setExtra("");
+            parentBlock.setExtra(new byte[0]);
             parentBlock.setCreationTime(Instant.now());
             parentBlock.setBlockHash(new byte[0]);
             parentBlock.setParentBlockHash(new byte[0]);

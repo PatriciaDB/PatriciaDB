@@ -8,11 +8,11 @@ public class BlockEntityConverter {
 
 
     public static BlockInfoRecord fromBlockEntity(BlockEntity entity) {
-        return new BlockInfoRecord(entity.getBlockHash(),
-                entity.getParentBlockHash(),
+        return new BlockInfoRecord(entity.getBlockHash().clone(),
+                entity.getParentBlockHash().clone(),
                 entity.getBlockNumber(),
                 entity.getCreationTime(),
-                entity.getExtra(),
+                entity.getExtra().clone(),
                 BitMapUtils.deserialize(entity.getNewNodeIds()),
                 BitMapUtils.deserialize(entity.getLostNodeIds()));
     }

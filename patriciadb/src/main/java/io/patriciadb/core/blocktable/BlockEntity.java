@@ -18,7 +18,7 @@ public class BlockEntity implements Entity {
     private byte[] parentBlockHash;
     private  long blockNumber;
     private  Instant creationTime;
-    private  String extra;
+    private  byte[] extra;
     private long indexRootNodeId;
     private byte[] lostNodeIds;
     private byte[] newNodeIds;
@@ -65,11 +65,11 @@ public class BlockEntity implements Entity {
         this.creationTime = creationTime;
     }
 
-    public String getExtra() {
+    public byte[] getExtra() {
         return extra;
     }
 
-    public void setExtra(String extra) {
+    public void setExtra(byte[] extra) {
         this.extra = extra;
     }
 
@@ -105,7 +105,7 @@ public class BlockEntity implements Entity {
                 ", parentBlockHash=" + Arrays.toString(parentBlockHash) +
                 ", blockNumber=" + blockNumber +
                 ", creationTime=" + creationTime +
-                ", extra='" + extra + '\'' +
+                ", extra='" + extra.length + '\'' +
                 ", indexRootNodeId=" + indexRootNodeId +
                 ", lostNodeIds=" + lostNodeIds.length +
                 ", newNodeIds=" + newNodeIds.length +
@@ -119,7 +119,7 @@ public class BlockEntity implements Entity {
             BosUtils.writeBytes(entry.parentBlockHash, bos);
             VarInt.putVarLong16(entry.blockNumber, bos);
             VarInt.putVarLong16(entry.creationTime.toEpochMilli(), bos);
-            BosUtils.writeString(entry.extra, bos);
+            BosUtils.writeBytes(entry.extra, bos);
             VarInt.putVarLong16(entry.indexRootNodeId, bos);
             BosUtils.writeBytes(entry.newNodeIds, bos);
             BosUtils.writeBytes(entry.lostNodeIds, bos);
@@ -133,7 +133,7 @@ public class BlockEntity implements Entity {
             entity.parentBlockHash = BosUtils.readBytes(buffer);
             entity.blockNumber = VarInt.getVarLong16(buffer);
             entity.creationTime = Instant.ofEpochMilli(VarInt.getVarLong16(buffer));
-            entity.extra = BosUtils.readString(buffer);
+            entity.extra = BosUtils.readBytes(buffer);
             entity.indexRootNodeId = VarInt.getVarLong16(buffer);
             entity.newNodeIds = BosUtils.readBytes(buffer);
             entity.lostNodeIds = BosUtils.readBytes(buffer);

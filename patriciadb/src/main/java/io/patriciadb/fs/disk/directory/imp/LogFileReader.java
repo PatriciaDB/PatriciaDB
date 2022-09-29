@@ -29,13 +29,13 @@ public class LogFileReader implements Closeable {
         return readNextSegment(ch);
     }
 
-    public void close() throws IOException{
+    public void close() throws IOException {
         ch.close();
     }
 
 
     private static Optional<LongLongHashMap> readNextSegment(FileChannel ch) throws IOException {
-        if(ch.position()==ch.size()) {
+        if (ch.position() == ch.size()) {
             return Optional.empty();
         }
         CRC32 crc32 = new CRC32();
@@ -64,9 +64,9 @@ public class LogFileReader implements Closeable {
         FileChannelUtils.readFully(ch, crcBuffer);
         crcBuffer.flip();
         long computedCrc = crc32.getValue();
-        long savedCrc =crcBuffer.getLong();
+        long savedCrc = crcBuffer.getLong();
 
-        if(computedCrc != savedCrc) {
+        if (computedCrc != savedCrc) {
             throw new IOException("Block CRC invalid, transaction will not be persisted");
         }
         return Optional.of(result);

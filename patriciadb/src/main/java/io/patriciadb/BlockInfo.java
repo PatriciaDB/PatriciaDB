@@ -11,6 +11,6 @@ public interface BlockInfo {
 
     Instant creationTime();
 
-    String attachment();
+    byte[] attachment();
 
 }

@@ -13,12 +13,12 @@ public abstract class BTreeIndexAbs<E extends Entity, I extends Comparable<I>> i
 
 
     public void beforeInsert(E entry) {
-        if(!isUnique()) {
+        if (!isUnique()) {
             return;
         }
         var key = getSearchKey(entry);
-        if(!bTree.find(key).isEmpty()) {
-            throw new UniqueConstrainViolation();
+        if (!bTree.find(key).isEmpty()) {
+            throw new UniqueConstrainViolation("Entry " + entry + " violates unique constrain");
         }
     }
 
@@ -35,7 +35,7 @@ public abstract class BTreeIndexAbs<E extends Entity, I extends Comparable<I>> i
     }
 
     public void update(E oldEntry, E newEntry) {
-        if(oldEntry.getPrimaryKey()!=newEntry.getPrimaryKey()) {
+        if (oldEntry.getPrimaryKey() != newEntry.getPrimaryKey()) {
             throw new IllegalArgumentException();
         }
         delete(oldEntry);
@@ -43,9 +43,9 @@ public abstract class BTreeIndexAbs<E extends Entity, I extends Comparable<I>> i
     }
 
     public long persist(BlockWriter blockWriter) {
-         bTree.persistChanges(blockWriter);
-         long indexrootId= bTree.getRootId().orElseThrow();
-         return indexrootId;
+        bTree.persistChanges(blockWriter);
+        long indexrootId = bTree.getRootId().orElseThrow();
+        return indexrootId;
     }
 
     public abstract boolean isUnique();
@@ -55,7 +55,4 @@ public abstract class BTreeIndexAbs<E extends Entity, I extends Comparable<I>> i
 
     public abstract KeyRange<I> getSearchKey(E entry);
 
-    public static class UniqueConstrainViolation extends RuntimeException {
-
-    }
 }

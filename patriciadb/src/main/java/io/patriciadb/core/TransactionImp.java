@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory;
 import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class TransactionImp implements Transaction {
@@ -46,7 +47,7 @@ public class TransactionImp implements Transaction {
         return tries.computeIfAbsent(Bytes.wrap(storageId), k -> {
             var res = storageIndex.get(storageId);
             if (res == null) {
-                throw new StorageNotFoundException("Storage "+ Arrays.toString(storageId)+" not found");
+                throw new StorageNotFoundException("Storage " + Arrays.toString(storageId) + " not found");
             }
             var trie = PatriciaMerkleTrie.open(Formats.ETHEREUM, VarInt.getVarLong(ByteBuffer.wrap(res)), transaction, persistedNodeObserverTracker);
             return new StorageImp(trie);
@@ -83,6 +84,16 @@ public class TransactionImp implements Transaction {
 
     @Override
     public synchronized void commit(byte[] blockHash) {
+        commit(blockHash, parentEntity.getBlockNumber() + 1, new byte[0]);
+    }
+
+    @Override
+    public void commit(byte[] blockHash, long blockId, byte[] extra) {
+        Objects.requireNonNull(blockHash, "BlockHash cannot be null");
+        if (extra == null) extra = new byte[0];
+        if (extra.length > 2048) {
+            throw new IllegalArgumentException("Extra data cannot be longer than 2048 bytes");
+        }
         for (var entry : tries.entrySet()) {
             var name = entry.getKey();
             var storage = entry.getValue();
@@ -90,7 +101,7 @@ public class TransactionImp implements Transaction {
             storage.trie.getRootHash();
             long rootId = storage.trie.persist(transaction);
             storageIndex.put(name.getBytes(), VarInt.varLong(rootId));
-            log.debug("Persisted storage {} rootId {}", name,rootId);
+            log.debug("Persisted storage {} rootId {}", name, rootId);
         }
         long storageIndexRootId = storageIndex.persist(transaction);
 
@@ -100,11 +111,11 @@ public class TransactionImp implements Transaction {
         log.debug("Commit Prepare - New nodes count {}, Lost Nodes Reference {}", newNodes.getLongCardinality(), lostNodes.getLongCardinality());
         BlockEntity blockEntity = new BlockEntity();
         blockEntity.setBlockHash(blockHash);
-        blockEntity.setBlockNumber(parentEntity.getBlockNumber() + 1);
+        blockEntity.setBlockNumber(blockId);
         blockEntity.setCreationTime(Instant.now());
         blockEntity.setParentBlockHash(parentEntity.getBlockHash());
         blockEntity.setIndexRootNodeId(storageIndexRootId);
-        blockEntity.setExtra("");
+        blockEntity.setExtra(extra);
         blockEntity.setNewNodeIds(BitMapUtils.serialize(newNodes));
         blockEntity.setLostNodeIds(BitMapUtils.serialize(lostNodes));
         blockTable.insert(blockEntity);
@@ -112,7 +123,6 @@ public class TransactionImp implements Transaction {
         transaction.commit();
         log.debug("Commit completed");
     }
-
 
     private class StorageImp implements Storage {
         private final PatriciaMerkleTrie trie;
