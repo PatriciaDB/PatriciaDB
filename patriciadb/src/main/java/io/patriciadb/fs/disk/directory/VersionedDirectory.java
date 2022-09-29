@@ -2,7 +2,7 @@ package io.patriciadb.fs.disk.directory;
 
 import org.eclipse.collections.impl.map.mutable.primitive.LongLongHashMap;
 
-public interface VersionedDirectory extends Directory {
+public interface VersionedDirectory  {
 
     void deleteOldSnapshots(long version);
 

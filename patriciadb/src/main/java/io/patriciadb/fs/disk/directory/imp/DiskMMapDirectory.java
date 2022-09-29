@@ -1,11 +1,14 @@
-package io.patriciadb.fs.disk.directory;
+package io.patriciadb.fs.disk.directory.imp;
 
 
 import io.patriciadb.fs.disk.DirectoryError;
+import io.patriciadb.fs.disk.directory.DiskDirectory;
 import io.patriciadb.fs.disk.directory.utils.SegmentUtils;
+import io.patriciadb.utils.lifecycle.PatriciaController;
 import org.eclipse.collections.api.LongIterable;
 import org.eclipse.collections.impl.map.mutable.primitive.LongLongHashMap;
-import org.roaringbitmap.longlong.Roaring64NavigableMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -17,18 +20,18 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class DiskMMapDirectory implements DiskDirectory {
+public class DiskMMapDirectory implements DiskDirectory, PatriciaController {
 
+    private final Logger log = LoggerFactory.getLogger(DiskMMapDirectory.class);
     private static final long ROW_SIZE = Long.BYTES;
     public static final long MAX_BLOCKS_PER_SEGMENT = Integer.MAX_VALUE / ROW_SIZE;
     public static final long MAX_SEGMENT_SIZE = MAX_BLOCKS_PER_SEGMENT * ROW_SIZE;
-    private static final long MINIMUM_DIRECTORY_CAPACITY = 500_000;
-    private static final long INCREASE_DELTA_CAPACITY = 500_000;
+    private static final long MINIMUM_DIRECTORY_CAPACITY = 1_000_000;
+    private static final long INCREASE_DELTA_CAPACITY = 3_000_000;
     private static final long MINIMUM_DIRECTORY_CAPACITY_SIZE = MINIMUM_DIRECTORY_CAPACITY * ROW_SIZE;
 
     private final AtomicBoolean isOpen = new AtomicBoolean(true);
     private final FileChannel ch;
-    private final Roaring64NavigableMap freeBlocksMap;
     private MappedByteBuffer[] buffers;
     private long currentBlockCapacity;
 
@@ -37,7 +40,6 @@ public class DiskMMapDirectory implements DiskDirectory {
             Files.createFile(path);
         }
         this.ch = FileChannel.open(path, StandardOpenOption.READ, StandardOpenOption.WRITE);
-        freeBlocksMap = new Roaring64NavigableMap(false);
 
         // Load segments
         long fileSize = ch.size();
@@ -46,25 +48,14 @@ public class DiskMMapDirectory implements DiskDirectory {
         }
         long blockIdCount = fileSize / ROW_SIZE;
         remapFile(blockIdCount);
+    }
+
+    @Override
+    public void forEach(BlockIdConsumer consumer) {
+        checkState();
         for (long i = 1; i < currentBlockCapacity; i++) {
-            if (getUnsafe(i) == 0) {
-                freeBlocksMap.addLong(i);
-            }
+            consumer.consume(i, getUnsafe(i));
         }
-    }
-
-    public synchronized Roaring64NavigableMap getFreeBlocksMap() {
-        checkState();
-        Roaring64NavigableMap map = new Roaring64NavigableMap(false);
-        map.or(freeBlocksMap);
-        return map;
-    }
-
-    public synchronized void expandCapacity() throws DirectoryError {
-        checkState();
-        long oldCapacity = currentBlockCapacity;
-        remapFile(currentBlockCapacity + INCREASE_DELTA_CAPACITY);
-        freeBlocksMap.add(oldCapacity, currentBlockCapacity);
     }
 
     private void remapFile(long newBlockCapacity) throws DirectoryError {
@@ -73,6 +64,7 @@ public class DiskMMapDirectory implements DiskDirectory {
             if (newBlockCapacity < oldCapacity) {
                 throw new IllegalArgumentException("Directory cannot be remapped with a smaller size");
             }
+            log.trace("Expanding Disk directory to new capacity of {}", newBlockCapacity);
             var segments = SegmentUtils.calculateSegments(newBlockCapacity * ROW_SIZE, MAX_SEGMENT_SIZE);
             buffers = new MappedByteBuffer[segments.size()];
             for (int i = 0; i < segments.size(); i++) {
@@ -82,7 +74,8 @@ public class DiskMMapDirectory implements DiskDirectory {
             }
             currentBlockCapacity = newBlockCapacity;
         } catch (IOException e) {
-            throw new DirectoryError(true,"Error while ReMapping file", e);
+            log.error("Failed to remap disk directory", e);
+            throw new DirectoryError(true, "Error while ReMapping file", e);
         }
     }
 
@@ -94,7 +87,6 @@ public class DiskMMapDirectory implements DiskDirectory {
             expandToBlock(blockId + INCREASE_DELTA_CAPACITY);
         }
         setUnsafe(blockId, blockPosition);
-        freeBlocksMap.removeLong(blockId);
     }
 
     @Override
@@ -144,7 +136,6 @@ public class DiskMMapDirectory implements DiskDirectory {
             return;
         }
         setUnsafe(blockId, 0);
-        freeBlocksMap.addLong(blockId);
     }
 
 //    public synchronized boolean compareAndSet(long blockId, long expectedVal, long newValue) throws DirectoryError {
@@ -164,9 +155,7 @@ public class DiskMMapDirectory implements DiskDirectory {
 //    }
 
     private synchronized void expandToBlock(long expandToBlock) throws DirectoryError {
-        long oldCapacity = currentBlockCapacity;
         remapFile(expandToBlock);
-        freeBlocksMap.add(oldCapacity, currentBlockCapacity);
     }
 
     private long getUnsafe(long blockId) {
@@ -186,17 +175,19 @@ public class DiskMMapDirectory implements DiskDirectory {
     }
 
     private void checkState() {
-        if(!isOpen.get()) {
+        if (!isOpen.get()) {
             throw new DirectoryError(true, "Directory is closed");
         }
     }
 
     @Override
-    public synchronized void close() throws IOException {
+    public synchronized void destroy() throws Exception {
+        log.info("Closing Disk Directory");
         try {
             ch.close();
         } finally {
             isOpen.set(false);
         }
     }
+
 }

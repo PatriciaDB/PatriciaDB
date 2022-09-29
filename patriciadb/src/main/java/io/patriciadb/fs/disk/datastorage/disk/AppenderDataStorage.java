@@ -4,6 +4,7 @@ import io.patriciadb.fs.FileSystemError;
 import io.patriciadb.fs.disk.StorageIoException;
 import io.patriciadb.fs.disk.datastorage.DataStorage;
 import io.patriciadb.fs.disk.utils.DiskUtils;
+import io.patriciadb.utils.lifecycle.PatriciaController;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,7 +15,7 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class AppenderDataStorage implements DataStorage {
+public class AppenderDataStorage implements DataStorage, PatriciaController {
     private final static Logger log = LoggerFactory.getLogger(AppenderDataStorage.class);
     private final ConcurrentHashMap<Integer, FileReader> readers = new ConcurrentHashMap<>();
     private volatile FileAppender currentAppender;

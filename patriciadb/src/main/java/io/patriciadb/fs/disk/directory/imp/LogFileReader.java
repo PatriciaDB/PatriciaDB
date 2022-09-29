@@ -1,4 +1,4 @@
-package io.patriciadb.fs.disk.directory.wal;
+package io.patriciadb.fs.disk.directory.imp;
 
 import io.patriciadb.utils.FileChannelUtils;
 import org.eclipse.collections.impl.map.mutable.primitive.LongLongHashMap;
@@ -13,10 +13,10 @@ import java.nio.file.StandardOpenOption;
 import java.util.Optional;
 import java.util.zip.CRC32;
 
-public class DirectoryLogFileReader implements Closeable {
+public class LogFileReader implements Closeable {
     private final FileChannel ch;
 
-    public DirectoryLogFileReader(Path path) throws IOException {
+    public LogFileReader(Path path) throws IOException {
         if (!Files.exists(path)) {
             throw new IOException("File does not exist");
         }

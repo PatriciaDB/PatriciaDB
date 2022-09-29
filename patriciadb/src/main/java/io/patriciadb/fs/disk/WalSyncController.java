@@ -1,55 +1,67 @@
 package io.patriciadb.fs.disk;
 
-import io.patriciadb.Storage;
+import io.patriciadb.fs.CallbackExecutor;
+import io.patriciadb.fs.TaskScheduledExecutor;
 import io.patriciadb.fs.disk.datastorage.disk.AppenderDataStorage;
-import io.patriciadb.fs.disk.directory.wal.WalDirectory;
+import io.patriciadb.fs.disk.directory.imp.WriteAheadLogDirectory;
+import io.patriciadb.utils.lifecycle.BeansHolder;
+import io.patriciadb.utils.lifecycle.PatriciaController;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Consumer;
 
-public class WalSyncController {
+public class WalSyncController implements PatriciaController {
 
     private final static Logger log = LoggerFactory.getLogger(WalSyncController.class);
-    private final WalDirectory walDirectory;
+    private final WriteAheadLogDirectory walDirectory;
     private final AppenderDataStorage storage;
     private final AtomicBoolean syncRequest = new AtomicBoolean(false);
     private final ConcurrentLinkedQueue<CompletableFuture<Void>> callbacks = new ConcurrentLinkedQueue<>();
-    private final Consumer<Throwable> exceptionHandler;
-    private final Executor callbackExecutor;
+    private final CallbackExecutor callbackExecutor;
+    private final TaskScheduledExecutor taskScheduledExecutor;
+    private final BeansHolder beansHolder;
 
-    public WalSyncController(WalDirectory walDirectory, AppenderDataStorage storage,Consumer<Throwable> exceptionHandler, Executor callbackExecutor) {
+    public WalSyncController(BeansHolder beansHolder, WriteAheadLogDirectory walDirectory, AppenderDataStorage storage, TaskScheduledExecutor taskScheduledExecutor, CallbackExecutor callbackExecutor) {
         this.walDirectory = walDirectory;
         this.storage = storage;
-        this.exceptionHandler = exceptionHandler;
-        this.callbackExecutor = callbackExecutor;
+        this.callbackExecutor =callbackExecutor;
+        this.taskScheduledExecutor = taskScheduledExecutor;
+        this.beansHolder= beansHolder;
+    }
+
+    @Override
+    public void initialize() throws Exception {
+        taskScheduledExecutor.getExecutorService().scheduleWithFixedDelay(this::syncWalJob, 100, 200, TimeUnit.MILLISECONDS);
     }
 
     public void syncWalJob() {
-        if(!syncRequest.compareAndSet(true, false)) {
+        if (!syncRequest.compareAndSet(true, false)) {
             return;
         }
         log.trace("Wal Sync Started");
         var callbackCopy = new ArrayList<CompletableFuture<Void>>();
-        while(!callbacks.isEmpty()) {
+        while (!callbacks.isEmpty()) {
             callbackCopy.add(callbacks.poll());
         }
         try {
             long startTime = System.currentTimeMillis();
             syncWal();
-            log.trace("Wal Synced in {}ms", System.currentTimeMillis()-startTime);
-            for(var callback: callbackCopy) {
-                callback.completeAsync(() ->null, callbackExecutor);
+            log.trace("Wal Synced in {}ms", System.currentTimeMillis() - startTime);
+            for (var callback : callbackCopy) {
+                callback.completeAsync(() -> null, callbackExecutor.getExecutor());
             }
         } catch (Throwable t) {
-            log.warn("Error while syncing wal files", t);
-            if(exceptionHandler!=null) {
-                exceptionHandler.accept(t);
+            log.error("Error while syncing wal files", t);
+            try {
+                log.error("Shutting down fileSystem");
+                beansHolder.shutdown();
+            } catch (Throwable t2) {
+                log.error("Error while closing file system", t2);
             }
         }
 
@@ -60,8 +72,11 @@ public class WalSyncController {
         walDirectory.sync();
     }
 
-    public void setSyncRequest() {
+    public void requestSync(boolean forceNow) {
         syncRequest.set(true);
+        if(forceNow) {
+            taskScheduledExecutor.getExecutorService().execute(this::syncWalJob);
+        }
     }
 
     public CompletableFuture<Void> registerCallback() {

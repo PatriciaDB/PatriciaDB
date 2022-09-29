@@ -4,7 +4,7 @@ import io.patriciadb.fs.disk.DirectoryError;
 
 import java.io.Closeable;
 
-public interface DiskDirectory extends Directory, Closeable {
+public interface DiskDirectory extends Directory {
 
     void sync() throws DirectoryError;
 

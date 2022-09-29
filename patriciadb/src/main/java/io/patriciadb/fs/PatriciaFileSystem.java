@@ -26,7 +26,7 @@ public interface PatriciaFileSystem {
         }
     }
 
-    void close();
+    void close() throws FileSystemError;
 
 
     default <T> T getSnapshot(Function<FSSnapshot, T> runnable) {

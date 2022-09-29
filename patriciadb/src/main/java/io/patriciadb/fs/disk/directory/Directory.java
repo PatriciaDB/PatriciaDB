@@ -7,11 +7,9 @@ import org.roaringbitmap.longlong.Roaring64NavigableMap;
 
 public interface Directory  {
 
-    Roaring64NavigableMap getFreeBlocksMap();
-
-    void expandCapacity() throws DirectoryError;
-
     long get(long blockId) throws DirectoryError;
+
+    void forEach(BlockIdConsumer consumer);
 
     default LongLongHashMap get(LongIterable ids) {
         LongLongHashMap map = new LongLongHashMap();
@@ -20,6 +18,10 @@ public interface Directory  {
     }
 
     void set(LongLongHashMap changeMap) throws DirectoryError;
+
+    interface BlockIdConsumer {
+        void consume(long blockId, long pointer);
+    }
 
 
 }

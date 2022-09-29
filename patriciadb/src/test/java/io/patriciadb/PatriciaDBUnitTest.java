@@ -1,7 +1,10 @@
 package io.patriciadb;
 
+import io.patriciadb.fs.PatriciaFileSystemFactory;
 import io.patriciadb.fs.disk.DiskFileSystem;
+import io.patriciadb.fs.properties.PropertyConstants;
 import io.patriciadb.fs.simple.SimpleFileSystem;
+import io.patriciadb.utils.Space;
 import org.apache.commons.io.FileUtils;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.junit.jupiter.api.BeforeAll;
@@ -10,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.Security;
+import java.util.HashMap;
 import java.util.Random;
 
 public class PatriciaDBUnitTest {
@@ -21,7 +25,7 @@ public class PatriciaDBUnitTest {
 
     @Test
     public void basicTest() throws Exception {
-        var fs = new SimpleFileSystem();
+        var fs = PatriciaFileSystemFactory.inMemoryFileSystem();
 
         var patricDB = PatriciaDB.createNew(fs);
 
@@ -64,7 +68,9 @@ public class PatriciaDBUnitTest {
         Path databaseDirectory = Files.createTempDirectory("patriciadb-benchmark");
         System.out.println(databaseDirectory);
         try {
-            var fs = new DiskFileSystem(databaseDirectory, Integer.MAX_VALUE);
+            var props = new HashMap<String,String>();
+            props.put(PropertyConstants.FS_DATA_FOLDER, databaseDirectory.toString());
+            var fs = PatriciaFileSystemFactory.createFromProperties(props);
 
             var patricDB = PatriciaDB.createNew(fs);
             {

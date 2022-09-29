@@ -3,6 +3,10 @@ apply plugin: 'java'
 apply plugin: 'java-library'
 
 
+test {
+    minHeapSize = "512m" // initial heap size
+    maxHeapSize = "4g" // maximum heap size
+}
 
 repositories {
     mavenCentral()

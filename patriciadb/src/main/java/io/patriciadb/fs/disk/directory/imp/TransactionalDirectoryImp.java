@@ -1,7 +1,9 @@
-package io.patriciadb.fs.disk.directory.transaction;
+package io.patriciadb.fs.disk.directory.imp;
 
 import io.patriciadb.fs.disk.*;
 import io.patriciadb.fs.disk.directory.*;
+import io.patriciadb.fs.disk.directory.utils.FreeBlockIdGenerator;
+import io.patriciadb.utils.lifecycle.PatriciaController;
 import org.eclipse.collections.impl.map.mutable.primitive.LongLongHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,17 +11,18 @@ import org.slf4j.LoggerFactory;
 import java.util.HashSet;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class TransactionalDirectoryImp implements TransactionalDirectory {
+public class TransactionalDirectoryImp implements TransactionalDirectory, PatriciaController {
     private final static Logger log = LoggerFactory.getLogger(TransactionalDirectoryImp.class);
 
     private final VersionedDirectory versionedDirectory;
+    private final FreeBlockIdSource freeBlockIdSource;
     private final AtomicBoolean isOpen = new AtomicBoolean(true);
     private final HashSet<DirectorySnapshot> openTransactions = new HashSet<>();
 
-    public TransactionalDirectoryImp(VersionedDirectory versionedDirectory) {
+    public TransactionalDirectoryImp(VersionedDirectory versionedDirectory, FreeBlockIdSource freeBlockIdSource) {
         this.versionedDirectory = versionedDirectory;
+        this.freeBlockIdSource = freeBlockIdSource;
     }
-
 
     public synchronized DirectorySnapshot getSnapshot() {
         checkState();
@@ -96,7 +99,7 @@ public class TransactionalDirectoryImp implements TransactionalDirectory {
         private final LongLongHashMap pending = new LongLongHashMap();
 
         public LocalDirTransaction(long transactionVersion) {
-            this.idGenerator = new FreeBlockIdGenerator(versionedDirectory);
+            this.idGenerator = new FreeBlockIdGenerator(freeBlockIdSource);
             this.transactionVersion = transactionVersion;
         }
 

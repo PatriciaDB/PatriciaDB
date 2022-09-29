@@ -1,4 +1,4 @@
-package io.patriciadb.fs.disk.directory.wal;
+package io.patriciadb.fs.disk.directory.imp;
 
 
 
@@ -13,13 +13,13 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.zip.CRC32;
 
-public class DirectoryLogFileWriter implements Closeable {
+public class LogFileWriter implements Closeable {
 
     private final FileChannel ch;
     private int cursor = 0;
 
-    public DirectoryLogFileWriter(Path path) throws IOException {
-        ch = FileChannel.open(path, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
+    public LogFileWriter(Path path) throws IOException {
+        ch = FileChannel.open(path, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
     }
 
 
