@@ -22,9 +22,9 @@ dependencies {
     testImplementation group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: '2.18.0'
     testImplementation group: 'commons-io', name: 'commons-io', version: '2.11.0'
 
+    implementation group: 'org.bouncycastle', name: 'bcprov-jdk15on', version: '1.70'
 
     implementation group: 'org.web3j', name: 'rlp', version: '5.0.0'
-    implementation group: 'org.bouncycastle', name: 'bcprov-jdk15on', version: '1.70'
     implementation group: 'org.apache.commons', name: 'commons-lang3', version: '3.12.0'
     implementation group: 'org.roaringbitmap', name: 'RoaringBitmap', version: '0.9.32'
     implementation group: 'org.eclipse.collections', name: 'eclipse-collections', version: '11.1.0'

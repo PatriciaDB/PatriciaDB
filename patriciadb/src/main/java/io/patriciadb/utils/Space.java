@@ -18,4 +18,8 @@ public enum Space {
     public long toBytes(long value) {
         return value*oneToBytes;
     }
+
+    public long fromBytes(long value) {
+        return value/oneToBytes;
+    }
 }

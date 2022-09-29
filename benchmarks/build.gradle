@@ -1,0 +1,46 @@
+plugins {
+    id 'java'
+}
+
+test {
+    minHeapSize = "512m" // initial heap size
+    maxHeapSize = "4g" // maximum heap size
+}
+
+repositories {
+    mavenCentral()
+    maven {
+        url 'https://hyperledger.jfrog.io/hyperledger/besu-maven'
+        content { includeGroupByRegex('org\\.hyperledger\\..*') }
+    }
+    maven {
+        url 'https://artifacts.consensys.net/public/maven/maven/'
+        content { includeGroupByRegex('tech\\.pegasys\\..*') }
+    }
+    maven {
+        url 'https://dl.cloudsmith.io/public/consensys/quorum-mainnet-launcher/maven/'
+        content { includeGroupByRegex('net\\.consensys\\..*') }
+    }
+    maven {
+        url 'https://splunk.jfrog.io/splunk/ext-releases-local'
+        content { includeGroupByRegex('com\\.splunk\\..*') }
+    }
+}
+
+dependencies {
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.1'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.1'
+    implementation project(":patriciadb")
+
+    implementation group: 'org.hyperledger.besu.internal', name: 'trie', version: '22.7.1'
+    implementation group: 'org.hyperledger.besu', name: 'plugin-api', version: '22.7.1'
+
+    implementation group: 'org.rocksdb', name: 'rocksdbjni', version: '7.5.3'
+    implementation group: 'commons-io', name: 'commons-io', version: '2.11.0'
+    implementation group: 'org.bouncycastle', name: 'bcprov-jdk15on', version: '1.70'
+
+}
+
+test {
+    useJUnitPlatform()
+}
