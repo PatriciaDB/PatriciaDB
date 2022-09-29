@@ -14,13 +14,24 @@ PatriciaDB is new database currently under development offering ACID properties.
 * Fully atomic transactions
 * Snapshot read
 * Automatically keeps tracks of all the past transaction and blocks
-* On each transaction you can handle an unlimited number of storage (of Patricia Merkle Trie)
+* Each transaction you can handle an unlimited number of storage (of Patricia Merkle Trie)
 * You can purge any transaction from the history
 
 
 # Performance and space used
 Early benchmarks suggests that PatriciaDB is between 5 to 10 times faster than the implementation provided by the Besu client (PatriciaMerkleTrie + RocksDB),
 and it uses half of the space.
+
+## Benchmarks
+### Writes speed
+Time to write a batch of 100K key/values. Comparing Besu+RocksDB with PatriciaDB. Lower is better.
+
+![alt text](img/write-benchmark.png "Title")
+
+### Space used
+Writing 40 batches of 100K keys each. Besu+RockDB takes 2026MB after compaction, while PatriciaDB just 1225MB.
+
+![alt text](img/size-benchmark.png "Title")
 
 # Example
 At this stage PatriciaDB can only be tested as a library in embedded mode.
