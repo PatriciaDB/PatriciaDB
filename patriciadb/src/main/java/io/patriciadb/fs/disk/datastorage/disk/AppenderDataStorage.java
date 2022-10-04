@@ -36,6 +36,9 @@ public class AppenderDataStorage implements DataStorage, PatriciaController {
         this.fileAppenderFactory = Objects.requireNonNull(fileAppenderFactory);
     }
 
+    public synchronized List<FileDataChannel> getFileDataList() {
+        return readers.values().stream().map(FileReader::getChannel).toList();
+    }
     public synchronized ByteBuffer read(long blockPointer)  {
         checkState();
         try {
@@ -59,6 +62,18 @@ public class AppenderDataStorage implements DataStorage, PatriciaController {
             throw new StorageIoException(e);
         }
     }
+    public synchronized void delete(int fileId) {
+        try {
+            var reader = readers.get(fileId);
+            if (reader == null) {
+                return;
+            }
+            readers.remove(fileId);
+            reader.getChannel().closeAndDelete();
+        } catch (IOException e) {
+            throw new StorageIoException(e);
+        }
+    }
 
     public synchronized void flushAndSync() {
         checkState();
@@ -69,8 +84,17 @@ public class AppenderDataStorage implements DataStorage, PatriciaController {
         }
     }
 
+    public synchronized void rollAppender()  {
+        try {
+            rollAppenderInternal();
+        } catch (IOException e) {
+            throw new StorageIoException(e);
+        }
+    }
+
     private synchronized FileAppender rollAppenderInternal() throws IOException {
         currentAppender.flushAndSync();
+        currentAppender.getChannel().makeReadOnly();
         var newAppender = fileAppenderFactory.newFileDataAppender();
         readers.put(newAppender.getChannel().getFileId(), newAppender);
         currentAppender = newAppender;

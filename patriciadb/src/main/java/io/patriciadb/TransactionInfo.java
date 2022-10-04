@@ -2,10 +2,10 @@ package io.patriciadb;
 
 import java.time.Instant;
 
-public interface BlockInfo {
-    byte[] blockHash();
+public interface TransactionInfo {
+    byte[] transactionId();
 
-    byte[] parentBlockHash();
+    byte[] parentTransactionId();
 
     long blockNumber();
 

@@ -22,6 +22,11 @@ public class SimpleFileSystem implements PatriciaFileSystem {
 
     }
 
+    @Override
+    public void runVacuum() {
+
+    }
+
     public SimpleFileSystem(long firstBlockId) {
         blockIdGenerator.set(firstBlockId);
     }

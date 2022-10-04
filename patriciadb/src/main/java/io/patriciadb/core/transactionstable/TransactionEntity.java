@@ -1,4 +1,4 @@
-package io.patriciadb.core.blocktable;
+package io.patriciadb.core.transactionstable;
 
 import io.patriciadb.table.Entity;
 import io.patriciadb.utils.VarInt;
@@ -10,12 +10,12 @@ import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.util.Arrays;
 
-public class BlockEntity implements Entity {
+public class TransactionEntity implements Entity {
 
-    public static final Serializer<BlockEntity> SERIALIZER = new SnapshotEntitySerializer();
+    public static final Serializer<TransactionEntity> SERIALIZER = new SnapshotEntitySerializer();
     private long primaryKey;
-    private byte[] blockHash;
-    private byte[] parentBlockHash;
+    private byte[] transactionId;
+    private byte[] parentTransactionId;
     private  long blockNumber;
     private  Instant creationTime;
     private  byte[] extra;
@@ -33,20 +33,20 @@ public class BlockEntity implements Entity {
         this.primaryKey = primaryKey;
     }
 
-    public byte[] getBlockHash() {
-        return blockHash;
+    public byte[] getTransactionId() {
+        return transactionId;
     }
 
-    public void setBlockHash(byte[] blockHash) {
-        this.blockHash = blockHash;
+    public void setTransactionId(byte[] transactionId) {
+        this.transactionId = transactionId;
     }
 
-    public byte[] getParentBlockHash() {
-        return parentBlockHash;
+    public byte[] getParentTransactionId() {
+        return parentTransactionId;
     }
 
-    public void setParentBlockHash(byte[] parentBlockHash) {
-        this.parentBlockHash = parentBlockHash;
+    public void setParentTransactionId(byte[] parentTransactionId) {
+        this.parentTransactionId = parentTransactionId;
     }
 
     public long getBlockNumber() {
@@ -101,8 +101,8 @@ public class BlockEntity implements Entity {
     public String toString() {
         return "BlockEntity{" +
                 "primaryKey=" + primaryKey +
-                ", blockHash=" + Arrays.toString(blockHash) +
-                ", parentBlockHash=" + Arrays.toString(parentBlockHash) +
+                ", transactionId=" + Arrays.toString(transactionId) +
+                ", parentTransactionId=" + Arrays.toString(parentTransactionId) +
                 ", blockNumber=" + blockNumber +
                 ", creationTime=" + creationTime +
                 ", extra='" + extra.length + '\'' +
@@ -112,11 +112,11 @@ public class BlockEntity implements Entity {
                 '}';
     }
 
-    private static class SnapshotEntitySerializer implements Serializer<BlockEntity> {
+    private static class SnapshotEntitySerializer implements Serializer<TransactionEntity> {
         @Override
-        public void serialize(BlockEntity entry, ByteArrayOutputStream bos) {
-            BosUtils.writeBytes(entry.blockHash, bos);
-            BosUtils.writeBytes(entry.parentBlockHash, bos);
+        public void serialize(TransactionEntity entry, ByteArrayOutputStream bos) {
+            BosUtils.writeBytes(entry.transactionId, bos);
+            BosUtils.writeBytes(entry.parentTransactionId, bos);
             VarInt.putVarLong16(entry.blockNumber, bos);
             VarInt.putVarLong16(entry.creationTime.toEpochMilli(), bos);
             BosUtils.writeBytes(entry.extra, bos);
@@ -126,11 +126,11 @@ public class BlockEntity implements Entity {
         }
 
         @Override
-        public BlockEntity deserialize(ByteBuffer buffer) {
-            var entity =new BlockEntity();
+        public TransactionEntity deserialize(ByteBuffer buffer) {
+            var entity =new TransactionEntity();
 
-            entity.blockHash = BosUtils.readBytes(buffer);
-            entity.parentBlockHash = BosUtils.readBytes(buffer);
+            entity.transactionId = BosUtils.readBytes(buffer);
+            entity.parentTransactionId = BosUtils.readBytes(buffer);
             entity.blockNumber = VarInt.getVarLong16(buffer);
             entity.creationTime = Instant.ofEpochMilli(VarInt.getVarLong16(buffer));
             entity.extra = BosUtils.readBytes(buffer);

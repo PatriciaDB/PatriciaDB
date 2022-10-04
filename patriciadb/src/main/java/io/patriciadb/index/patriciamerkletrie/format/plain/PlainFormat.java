@@ -6,6 +6,7 @@ import io.patriciadb.index.patriciamerkletrie.format.HeaderNodePair;
 import io.patriciadb.index.patriciamerkletrie.format.StorageSerializer;
 import io.patriciadb.index.patriciamerkletrie.io.NodeLoader;
 import io.patriciadb.index.patriciamerkletrie.nodes.Node;
+import io.patriciadb.index.patriciamerkletrie.nodes.NodeState;
 import io.patriciadb.index.patriciamerkletrie.serializer.NodeDeserialiser;
 
 import java.nio.ByteBuffer;
@@ -46,6 +47,8 @@ public class PlainFormat implements Format {
         @Override
         public HeaderNodePair unpackNodeWithHeader(long nodeId, ByteBuffer buffer) {
             var node = (Node)NodeDeserialiser.deserialise(buffer);
+            node.setState(NodeState.PERSISTED);
+            node.setNodeId(nodeId);
             return new HeaderNodePair() {
                 @Override
                 public Header getHeader() {

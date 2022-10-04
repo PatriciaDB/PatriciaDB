@@ -7,6 +7,7 @@ import io.patriciadb.fs.PatriciaFileSystem;
 import io.patriciadb.fs.disk.datastorage.DataStorage;
 import io.patriciadb.fs.disk.datastorage.disk.AppenderDataStorage;
 import io.patriciadb.fs.disk.directory.*;
+import io.patriciadb.fs.disk.vacuum.VacuumCleaner;
 import io.patriciadb.utils.lifecycle.BeansHolder;
 import io.patriciadb.utils.lifecycle.PatriciaController;
 import org.slf4j.Logger;
@@ -23,20 +24,24 @@ public class DiskFileSystem implements PatriciaFileSystem, PatriciaController {
     private final AppenderDataStorage dataStorage;
     private final TransactionalDirectory transactionalDirectory;
     private final WalSyncController walSyncController;
+    private final VacuumCleaner vacuumCleaner;
 
-    public DiskFileSystem(BeansHolder beansHolder,
-                          AppenderDataStorage dataStorage,
-                          TransactionalDirectory transactionalDirectory,
-                          WalSyncController walSyncController) {
+    public DiskFileSystem(BeansHolder beansHolder, AppenderDataStorage dataStorage, TransactionalDirectory transactionalDirectory, WalSyncController walSyncController, VacuumCleaner vacuumCleaner) {
         this.beansHolder = beansHolder;
         this.dataStorage = dataStorage;
         this.transactionalDirectory = transactionalDirectory;
         this.walSyncController = walSyncController;
+        this.vacuumCleaner = vacuumCleaner;
     }
 
     @Override
     public FSSnapshot getSnapshot() {
         return new LocalReadTransaction(transactionalDirectory.getSnapshot(), dataStorage);
+    }
+
+    @Override
+    public void runVacuum() {
+        vacuumCleaner.fullVacuum();
     }
 
     @Override
@@ -76,7 +81,21 @@ public class DiskFileSystem implements PatriciaFileSystem, PatriciaController {
         }
     }
 
-    private static class LocalReadTransaction implements FSSnapshot {
+    private static abstract class DisposableTransaction {
+        private final AtomicBoolean isDisposed = new AtomicBoolean(false);
+
+        protected void checkState() {
+            if(isDisposed.get()) {
+                throw new IllegalStateException("This transaction is already disposed");
+            }
+        }
+
+        protected void dispose() {
+            isDisposed.set(true);
+        }
+    }
+
+    private static class LocalReadTransaction extends DisposableTransaction implements FSSnapshot {
         private final DirectorySnapshot directorySnapshot;
         private final DataStorage dataStorage;
 
@@ -87,7 +106,7 @@ public class DiskFileSystem implements PatriciaFileSystem, PatriciaController {
 
         @Override
         public ByteBuffer read(long blockId) {
-
+            checkState();
             long pointer = directorySnapshot.get(blockId);
             if (pointer == 0) {
                 return null;
@@ -97,11 +116,12 @@ public class DiskFileSystem implements PatriciaFileSystem, PatriciaController {
 
         @Override
         public void release() {
+            dispose();
             directorySnapshot.release();
         }
     }
 
-    private class LocalTransaction implements FSTransaction {
+    private class LocalTransaction extends DisposableTransaction implements FSTransaction {
         private final DirectoryTransaction transaction;
 
         public LocalTransaction(DirectoryTransaction transaction) {
@@ -110,6 +130,7 @@ public class DiskFileSystem implements PatriciaFileSystem, PatriciaController {
 
         @Override
         public ByteBuffer read(long blockId) {
+            checkState();
             var pointer = transaction.get(blockId);
             if (pointer == 0) {
                 return null;
@@ -120,6 +141,7 @@ public class DiskFileSystem implements PatriciaFileSystem, PatriciaController {
 
         @Override
         public long write(ByteBuffer buffer) {
+            checkState();
             long id = transaction.getNextFreeBlockId();
             overwrite(id, buffer);
             return id;
@@ -127,24 +149,33 @@ public class DiskFileSystem implements PatriciaFileSystem, PatriciaController {
 
         @Override
         public void overwrite(long blockId, ByteBuffer buffer) {
+            checkState();
             long filePointer = dataStorage.write(buffer);
             transaction.set(blockId, filePointer);
         }
 
         @Override
         public void delete(long blockId) {
+            checkState();
             transaction.clear(blockId);
         }
 
 
         public void commit() {
-            transaction.commit();
-            transaction.release();
-            walSyncController.requestSync(true);
+            checkState();
+            try {
+                transaction.commit();
+                transaction.release();
+                walSyncController.requestSync(true);
+            } finally {
+                dispose();
+                transaction.release();
+            }
         }
 
         @Override
         public void release() {
+            dispose();
             transaction.release();
         }
     }

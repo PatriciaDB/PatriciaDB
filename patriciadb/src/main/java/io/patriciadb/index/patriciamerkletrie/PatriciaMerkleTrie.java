@@ -1,8 +1,7 @@
 package io.patriciadb.index.patriciamerkletrie;
 
 import io.patriciadb.index.patriciamerkletrie.io.NodeLoader;
-import io.patriciadb.index.patriciamerkletrie.visitors.FindVisitor;
-import io.patriciadb.index.patriciamerkletrie.visitors.NodePrinterVisitor;
+import io.patriciadb.index.patriciamerkletrie.visitors.*;
 import io.patriciadb.fs.BlockReader;
 import io.patriciadb.fs.BlockWriter;
 import io.patriciadb.index.patriciamerkletrie.format.Format;
@@ -10,8 +9,8 @@ import io.patriciadb.index.patriciamerkletrie.nodes.EmptyNode;
 import io.patriciadb.index.patriciamerkletrie.nodes.Node;
 import io.patriciadb.index.patriciamerkletrie.serializer.SerializerPersisterVisitor;
 import io.patriciadb.index.patriciamerkletrie.utils.Nibble;
-import io.patriciadb.index.patriciamerkletrie.visitors.DeleteVisitor;
-import io.patriciadb.index.patriciamerkletrie.visitors.InsertionVisitor;
+
+import java.util.function.BiConsumer;
 
 public class PatriciaMerkleTrie {
     private final NodeLoader nodeLoader;
@@ -69,6 +68,11 @@ public class PatriciaMerkleTrie {
             root = result.subChild();
         }
         return result.subtreeChanged();
+    }
+
+    public void forEach(BiConsumer<byte[], byte[]> consumer) {
+        var visitor = new ForEachVisitor(nodeLoader, consumer);
+        root.apply(visitor, Nibble.EMPTY);
     }
 
     public boolean delete(byte[] key) {

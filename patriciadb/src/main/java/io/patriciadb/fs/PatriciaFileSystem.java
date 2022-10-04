@@ -11,6 +11,8 @@ public interface PatriciaFileSystem {
 
     FSTransaction startTransaction();
 
+    void runVacuum();
+
     CompletableFuture<Void> syncNow();
 
     default <T> T startTransaction(Function<FSTransaction, T> runnable) {

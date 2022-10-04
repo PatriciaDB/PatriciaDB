@@ -29,6 +29,12 @@ public class PersistedNodeObserverTracker implements PersistedNodeObserver {
         lostNodes.addLong(node.getNodeId());
     }
 
+    public TrieDeltaChanges toTrieDeltaChange() {
+        newNodes.runOptimize();
+        lostNodes.runOptimize();
+        return new TrieDeltaChanges(newNodes, lostNodes);
+    }
+
     public Roaring64NavigableMap getLostNodes() {
         return lostNodes;
     }

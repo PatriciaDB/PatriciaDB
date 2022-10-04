@@ -1,9 +1,13 @@
 package io.patriciadb.fs.disk.directory;
 
 import io.patriciadb.fs.disk.DirectoryError;
+import io.patriciadb.fs.disk.utils.LongLongPair;
 import org.eclipse.collections.api.LongIterable;
 import org.eclipse.collections.impl.map.mutable.primitive.LongLongHashMap;
 import org.roaringbitmap.longlong.Roaring64NavigableMap;
+
+import java.util.List;
+import java.util.function.Predicate;
 
 public interface Directory  {
 
@@ -22,6 +26,5 @@ public interface Directory  {
     interface BlockIdConsumer {
         void consume(long blockId, long pointer);
     }
-
 
 }

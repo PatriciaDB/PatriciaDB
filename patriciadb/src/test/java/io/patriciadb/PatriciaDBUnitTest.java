@@ -1,10 +1,7 @@
 package io.patriciadb;
 
-import io.patriciadb.fs.PatriciaFileSystemFactory;
-import io.patriciadb.fs.disk.DiskFileSystem;
+import io.patriciadb.fs.properties.FileSystemType;
 import io.patriciadb.fs.properties.PropertyConstants;
-import io.patriciadb.fs.simple.SimpleFileSystem;
-import io.patriciadb.utils.Space;
 import org.apache.commons.io.FileUtils;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.junit.jupiter.api.BeforeAll;
@@ -14,6 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.Security;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 
 public class PatriciaDBUnitTest {
@@ -25,9 +23,8 @@ public class PatriciaDBUnitTest {
 
     @Test
     public void basicTest() throws Exception {
-        var fs = PatriciaFileSystemFactory.inMemoryFileSystem();
 
-        var patricDB = PatriciaDB.createNew(fs);
+        var patricDB = PatriciaDB.createNew(Map.of());
 
         var genesis = patricDB.startTransaction();
         try {
@@ -58,57 +55,6 @@ public class PatriciaDBUnitTest {
         } finally {
             block1.release();
         }
-        fs.close();
     }
 
-
-//    @Test
-    public void benchmark() throws Exception {
-
-        Path databaseDirectory = Files.createTempDirectory("patriciadb-benchmark");
-        System.out.println(databaseDirectory);
-        try {
-            var props = new HashMap<String,String>();
-            props.put(PropertyConstants.FS_DATA_FOLDER, databaseDirectory.toString());
-            var fs = PatriciaFileSystemFactory.createFromProperties(props);
-
-            var patricDB = PatriciaDB.createNew(fs);
-            {
-                var genesis = patricDB.startTransaction();
-                try {
-                    var state = genesis.createOrOpenStorage("state".getBytes());
-                    state.put("hello".getBytes(), "world".getBytes());
-                    genesis.commit("block0".getBytes());
-                } finally {
-                    genesis.release();
-                }
-            }
-
-            long starttime = System.currentTimeMillis();
-            Random r = new Random(1);
-            byte[] randomKey = new byte[32];
-            byte[] randomVal = new byte[32];
-            for (int block = 0; block < 40; block++) {
-                long transactionTime = System.currentTimeMillis();
-                var transaction = patricDB.startTransaction(("block" + block).getBytes());
-                try {
-                    var state = transaction.createOrOpenStorage(("state").getBytes());
-
-                    for (int i = 0; i < 100_000; i++) {
-                        r.nextBytes(randomKey);
-                        r.nextBytes(randomVal);
-                        state.put(randomKey, randomVal);
-                    }
-
-                    transaction.commit(("block" + (block + 1)).getBytes());
-                } finally {
-                    transaction.release();
-                }
-                System.out.printf("Transaction %d time %d%n", block, System.currentTimeMillis() - transactionTime);
-            }
-            System.out.printf("Total Time %d%n", System.currentTimeMillis() - starttime);
-        }finally {
-            FileUtils.deleteDirectory(databaseDirectory.toFile());
-        }
-    }
 }

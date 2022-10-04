@@ -2,6 +2,7 @@ package io.patriciadb.fs;
 
 import io.patriciadb.fs.disk.*;
 import io.patriciadb.fs.disk.directory.imp.*;
+import io.patriciadb.fs.disk.vacuum.VacuumCleaner;
 import io.patriciadb.fs.properties.FileSystemType;
 import io.patriciadb.fs.properties.FsProperties;
 import io.patriciadb.fs.simple.SimpleFileSystem;
@@ -66,7 +67,8 @@ public class PatriciaFileSystemFactory {
         var dataStorage = beanHolder.addBean(() -> DataStorageFactory.openDirectory(dataDirectory, fsProperties));
 
         var walSyncController = beanHolder.addBean(() -> new WalSyncController(beanHolder, walDirectory, dataStorage, executorService, callbackExecutor));
-        var diskFileSystem = beanHolder.addBean(() -> new DiskFileSystem(beanHolder, dataStorage, transactionalDirectory, walSyncController));
+        var vacuumCleaner = beanHolder.addBean(() -> new VacuumCleaner(walDirectory, diskMMapDirectory, dataStorage, executorService));
+        var diskFileSystem = beanHolder.addBean(() -> new DiskFileSystem(beanHolder, dataStorage, transactionalDirectory, walSyncController, vacuumCleaner));
         beanHolder.start();
         return diskFileSystem;
     }

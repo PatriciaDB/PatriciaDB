@@ -109,7 +109,11 @@ public class WriteAheadLogDirectory implements DiskDirectory, PatriciaController
     public synchronized void sync() throws DirectoryError {
         checkState();
         writeToLogFileAndSync(false);
+    }
 
+    public synchronized void syncFully() throws DirectoryError {
+        checkState();
+        writeToLogFileAndSync(true);
     }
 
     @Override

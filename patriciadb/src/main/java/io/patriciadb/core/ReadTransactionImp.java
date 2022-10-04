@@ -3,8 +3,8 @@ package io.patriciadb.core;
 import io.patriciadb.ReadTransaction;
 import io.patriciadb.StorageNotFoundException;
 import io.patriciadb.StorageRead;
-import io.patriciadb.core.blocktable.BlockEntity;
-import io.patriciadb.core.blocktable.BlockTableRead;
+import io.patriciadb.core.transactionstable.TransactionEntity;
+import io.patriciadb.core.transactionstable.TransactionTableRead;
 import io.patriciadb.fs.FSSnapshot;
 import io.patriciadb.index.patriciamerkletrie.PatriciaMerkleTrie;
 import io.patriciadb.index.patriciamerkletrie.format.Formats;
@@ -20,16 +20,16 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ReadTransactionImp implements ReadTransaction {
     private final static Logger log = LoggerFactory.getLogger(ReadTransactionImp.class);
     private final FSSnapshot snapshot;
-    private final BlockTableRead blockTable;
-    private final BlockEntity blockEntity;
+    private final TransactionTableRead blockTable;
+    private final TransactionEntity transactionEntity;
     private final PatriciaMerkleTrie storageIndex;
     private final ConcurrentHashMap<Bytes, StorageReadImp> tries = new ConcurrentHashMap<>();
 
-    public ReadTransactionImp(FSSnapshot snapshot, BlockTableRead blockTable, BlockEntity blockEntity) {
+    public ReadTransactionImp(FSSnapshot snapshot, TransactionTableRead blockTable, TransactionEntity transactionEntity) {
         this.snapshot = snapshot;
         this.blockTable = blockTable;
-        this.blockEntity = blockEntity;
-        this.storageIndex = PatriciaMerkleTrie.open(Formats.PLAIN, blockEntity.getIndexRootNodeId(), snapshot);
+        this.transactionEntity = transactionEntity;
+        this.storageIndex = PatriciaMerkleTrie.open(Formats.PLAIN, transactionEntity.getIndexRootNodeId(), snapshot);
     }
 
 

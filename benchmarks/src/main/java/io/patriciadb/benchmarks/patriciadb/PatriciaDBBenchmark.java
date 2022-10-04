@@ -29,10 +29,9 @@ public class PatriciaDBBenchmark {
             var props = new HashMap<String, String>();
             props.put(PropertyConstants.FS_DATA_FOLDER, tempDir.toString());
             props.put(PropertyConstants.FS_TYPE, FileSystemType.APPENDER.toString());
-            var fs = PatriciaFileSystemFactory.createFromProperties(props);
 
 
-            var patricDB = PatriciaDB.createNew(fs);
+            var patricDB = PatriciaDB.createNew(props);
 
             var tr = patricDB.startTransaction();
             try {
@@ -63,7 +62,7 @@ public class PatriciaDBBenchmark {
             System.out.printf("Final root hash %s%n", HexFormat.of().withDelimiter(":").withLowerCase().formatHex(rootHash));
             System.out.printf("Total Time %d%n", System.currentTimeMillis() - starttime);
             System.out.printf("Database size before vacuum %dMB%n", Space.MEGABYTE.fromBytes(FileUtils.sizeOfDirectory(tempDir.toFile())));
-            fs.close();
+            patricDB.close();
         } finally {
             FileUtils.deleteDirectory(tempDir.toFile());
         }

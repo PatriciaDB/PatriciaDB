@@ -2,8 +2,10 @@ package io.patriciadb.fs.disk.directory.imp;
 
 
 import io.patriciadb.fs.disk.DirectoryError;
+import io.patriciadb.fs.disk.directory.BlockIdPredicate;
 import io.patriciadb.fs.disk.directory.DiskDirectory;
 import io.patriciadb.fs.disk.directory.utils.SegmentUtils;
+import io.patriciadb.fs.disk.utils.LongLongPair;
 import io.patriciadb.utils.lifecycle.PatriciaController;
 import org.eclipse.collections.api.LongIterable;
 import org.eclipse.collections.impl.map.mutable.primitive.LongLongHashMap;
@@ -18,6 +20,8 @@ import java.nio.channels.FileChannel.MapMode;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class DiskMMapDirectory implements DiskDirectory, PatriciaController {
@@ -56,6 +60,17 @@ public class DiskMMapDirectory implements DiskDirectory, PatriciaController {
         for (long i = 1; i < currentBlockCapacity; i++) {
             consumer.consume(i, getUnsafe(i));
         }
+    }
+
+    public List<LongLongPair> get(BlockIdPredicate predicate) {
+        ArrayList<LongLongPair> result = new ArrayList<>();
+        for (long i = 1; i < currentBlockCapacity; i++) {
+            long pointer = getUnsafe(i);
+            if (predicate.test(i, pointer)) {
+                result.add(new LongLongPair(i, pointer));
+            }
+        }
+        return result;
     }
 
     private void remapFile(long newBlockCapacity) throws DirectoryError {
@@ -138,21 +153,21 @@ public class DiskMMapDirectory implements DiskDirectory, PatriciaController {
         setUnsafe(blockId, 0);
     }
 
-//    public synchronized boolean compareAndSet(long blockId, long expectedVal, long newValue) throws DirectoryError {
-//        if (blockId >= currentBlockCapacity) {
-//            expandToBlock(blockId + INCREASE_DELTA_CAPACITY);
-//        }
-//        long position = blockId * ROW_SIZE;
-//        int mmapPosition = (int) (position % MAX_SEGMENT_SIZE);
-//        int mmapIndex = (int) (position / MAX_SEGMENT_SIZE);
-//        var mmap = buffers[mmapIndex];
-//        var oldValue = mmap.getLong(mmapPosition);
-//        if (oldValue != expectedVal) {
-//            return false;
-//        }
-//        mmap.putLong(mmapPosition, newValue);
-//        return true;
-//    }
+    public synchronized boolean compareAndSet(long blockId, long expectedVal, long newValue) throws DirectoryError {
+        if (blockId >= currentBlockCapacity) {
+            return false;
+        }
+        long position = blockId * ROW_SIZE;
+        int mmapPosition = (int) (position % MAX_SEGMENT_SIZE);
+        int mmapIndex = (int) (position / MAX_SEGMENT_SIZE);
+        var mmap = buffers[mmapIndex];
+        var oldValue = mmap.getLong(mmapPosition);
+        if (oldValue != expectedVal) {
+            return false;
+        }
+        mmap.putLong(mmapPosition, newValue);
+        return true;
+    }
 
     private synchronized void expandToBlock(long expandToBlock) throws DirectoryError {
         remapFile(expandToBlock);

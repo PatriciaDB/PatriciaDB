@@ -1,4 +1,5 @@
 rootProject.name = 'PatriciaDB'
 include 'patriciadb'
 include 'benchmarks'
+include 'examples'
 

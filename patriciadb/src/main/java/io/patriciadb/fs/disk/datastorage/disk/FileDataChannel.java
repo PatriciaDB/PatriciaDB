@@ -12,6 +12,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class FileDataChannel implements Closeable {
     public enum OpenMode {READ_ONLY,READ_WRITE}
@@ -20,12 +21,14 @@ public class FileDataChannel implements Closeable {
     private final FileChannel ch;
     private final FileDataHeader header;
     private final OpenMode openMode;
+    private final AtomicBoolean isReadOnly = new AtomicBoolean(false);
 
     private FileDataChannel(Path path, FileChannel ch, FileDataHeader header, OpenMode openMode) {
         this.path = path;
         this.ch = ch;
         this.header = header;
         this.openMode = openMode;
+        isReadOnly.set(openMode == OpenMode.READ_ONLY);
     }
 
     public int getFileId() {
@@ -33,11 +36,22 @@ public class FileDataChannel implements Closeable {
     }
 
     public long write(ByteBuffer buffer, long position) throws IOException{
+        if(isReadOnly.get()) {
+            throw new IllegalStateException("FileData is readonly");
+        }
         return ch.write(buffer, position);
     }
 
     public MappedByteBuffer mmap(long offset, int size) throws IOException {
         return ch.map(FileChannel.MapMode.READ_ONLY, offset, size);
+    }
+
+    public void makeReadOnly() {
+        isReadOnly.set(true);
+    }
+
+    public boolean isReadOnly() {
+        return isReadOnly.get();
     }
 
     public FileDataHeader getHeader() {
@@ -49,11 +63,19 @@ public class FileDataChannel implements Closeable {
         ch.close();
     }
 
+    public void closeAndDelete() throws IOException {
+        close();
+        Files.delete(path);
+    }
+
     public long size() throws IOException {
         return ch.size();
     }
 
     public void truncate(long to) throws IOException {
+        if(isReadOnly.get()) {
+            throw new IllegalStateException("FileData is readonly");
+        }
         ch.truncate(to);
     }
 

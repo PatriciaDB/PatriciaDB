@@ -1,21 +1,84 @@
 # PatriciaDB
+![alt text](img/transactions.png "Title")
+PatriciaDB is fast and lightweight transactional key/value database built on the PatriciaMerkleTrie data structure.
 
-PatriciaDB is a new database under development based on a Patricia Merkle Trie index written in Java.
-Initially available only as a library (embedded), it will be available as a server application with client library
-written for different languages.
+Each transaction can handle an unlimited number of Tries, which are called storages in PatriciaDB.
+For each storage, the database also compute and stores a cryptographic hash of each node of the trie.
+PatriciaDB supports multiple Hashing algorithms and multiple formats, Ethereum included.
 
-Can be used by Ethereum full node clients or by other blockchains.
+The Ethereum format is currently the default one. It means that when you
+insert a defined set of key/values to a storage,
+the root hash of the storage is the same
+of any other Ethereum client.
+
+PatriciaDB is not based on RocksDB likes many
+Ethereum clients available on the market right now,
+instead it uses a custom file system format
+specifically designed to store the data of the nodes
+efficiently and in a compact way.
 
 For more information read our wiki:
 https://github.com/PatriciaDB/PatriciaDB/wiki
 
-# Features
-PatriciaDB is new database currently under development offering ACID properties.
-* Fully atomic transactions
-* Snapshot read
-* Automatically keeps tracks of all the past transaction and blocks
-* Each transaction you can handle an unlimited number of storage (of Patricia Merkle Trie)
-* You can purge any transaction from the history
+## Basic Concepts
+### 1. One block per Transaction
+To make the development of a new blockchain easy,
+we have developed PatriciaDB with one concept in mind:
+**One Transaction per Block**
+
+To start a new transaction you need the hash of the parent
+block.
+
+Similarly, when committing the changes, you can name
+the newly created transaction with the hash of the new block.
+
+```java
+var transaction = patriciaDb.startTransaction(block.parentHash);
+// Make you changes here
+transaction.commit(block.hash);
+```
+
+When starting a new transaction, you don't have to start from the tail
+of the chain, instead you can start from any transaction in your history.
+### 2. Unlimited Number Trie/Storage
+When you start a transaction, you can create and manipulate
+and unlimited number of different storage.
+A storage, in PatriciaDB, is a PatriciaMerkleTrie structures.
+
+Each storage is uniquely identified by its own name.
+
+```java
+byte[] storageId = "state-storage".getBytes();
+
+var transaction = patriciaDb.startTransaction(block.parentHash);
+
+var storage = transaction.getOrCreateStorage(storageId);
+storage.put(key, value);
+
+transaction.commit(block.hash);
+```
+
+### 3. Keeps the history clear
+The old transactions are kept inside an indexed history
+tables and can be queried to get the metadata of the past
+transactions, like the parent hash, creation time, etc.
+
+### 4. Fast past transactions removal
+Ethereum clients have often the need to delete the old states of trie
+to free up disk memory. This is generally a very a heavy task.
+
+Thanks to the underline file system implemented for PatriciaDB,
+the old states/transactions can be removed very efficiently.
+
+PatriciaDB keeps the list of new nodes and lost nodes for each transaction in
+a compressed bitmap. This information can be used to delete
+a transaction very efficiently.
+
+
+### 5. Vacuum
+If you have deleted many past transactions, you may want to recover
+the spaced used from the disk. Running a Vacuum 
+will recover all the unused space from the disk.
 
 
 # Performance and space used
@@ -29,7 +92,8 @@ Time to write a batch of 100K key/values. Comparing Besu+RocksDB with PatriciaDB
 ![alt text](img/write-benchmark.png "Title")
 
 ### Space used
-Writing 40 batches of 100K keys each. Besu+RockDB takes 2026MB after compaction, while PatriciaDB just 1225MB.
+Writing 40 batches of 100K keys each. Besu+RockDB uses 2026mb after compaction,
+while PatriciaDB just 1225mb.
 
 ![alt text](img/size-benchmark.png "Title")
 
@@ -37,48 +101,53 @@ Writing 40 batches of 100K keys each. Besu+RockDB takes 2026MB after compaction,
 At this stage PatriciaDB can only be tested as a library in embedded mode.
 
 ```java
-// Add BouncyCastle as a security provider to support Keccak-256
-Security.addProvider(new BouncyCastleProvider());
+        // Add BouncyCastle as a security provider to support Keccak-256
+        Security.addProvider(new BouncyCastleProvider());
 
-// We need to create a PatriciaFileSystem
-var databaseFolder = ...;
-var fs = new DiskFileSystem(databaseFolder);
+        var formatter = HexFormat.of().withLowerCase().withDelimiter(":");
+        byte[] stateStorageId = "state-storage".getBytes();
+        // random address
+        byte[] address = {89, 65, 12, 79, 123, 94, 54, 23};
+        // random value we want to store
+        byte[] value = {13, 5, 9};
 
-var patricDB = PatriciaDB.createNew(fs);
+        // The hash of the genesis block
+        byte[] genesisBlockHash = {87,21,90,12,53};
 
-// We write the genesis block to the database
-var genesisBlockTransaction = patricDB.startTransaction();
-try {
-    var stateStorage = genesisBlockTransaction.createOrOpenStorage("state".getBytes());
-    stateStorage.put("hello".getBytes(), "world".getBytes());
-    
-    var philipStorage = genesisBlockTransaction.createOrOpenStorage("philipAccount".getBytes());
-    philipStorage.put("hello".getBytes(), "Philip".getBytes());
-    // We get the rootHash of this storage in Ethereum format
-    byte[] philipRootHash = philipStorage.rootHash();
-    
-    // We you make a commit you must give to the transaction a unique identifier
-    // which can be the blockHash
-    genesis.commit("block0hash".getBytes());
-} finally {
-    // Alway release a transaction to avoid memory leak
-    genesisBlockTransaction.release();
-}
+        // Let's create a new in-memory database
+        PatriciaDB db = PatriciaDB.createInMemory();
+        // Start a new transaction from an empty state
+        var genesisTransaction = db.startTransaction();
+        try {
+            // Open or create a named storage id, in this case the storage is the global state storage.
+            var stateStorageTrie = genesisTransaction.createOrOpenStorage(stateStorageId);
+            stateStorageTrie.put(address, value);
+            byte[] stateStorageRootHash = stateStorageTrie.rootHash();
+            System.out.printf("Genesis storage-state root hash: %s%n", formatter.formatHex(stateStorageRootHash));
+            genesisTransaction.commit(genesisBlockHash);
+        } finally {
+            genesisTransaction.release();
+        }
 
-// Next transaction start from the genesis block hash.
-// You don't have to start from the tail, you can create a new transaction from any block
-var block0Transaction = patricDB.startTransaction("block0hash".getBytes());
-try {
-    var stateStorage = block0Transaction.createOrOpenStorage("state".getBytes());
-    System.out.println(new String(state.get("hello".getBytes()))); // print "world"
-    
-    var philipStorage = block0Transaction.createOrOpenStorage("philipAccount".getBytes());
-    System.out.println(new String(philipStorage.get("hello".getBytes()))); // print "philip"
-    // We make a commit using the block hash
-    genesis.commit("block1hash".getBytes());
-} finally {
-    block0Transaction.release();
-}
+        byte[] block1Hash = {89,95,12,0,15,78};
+        // This time we start a transaction from a previous state.
+        // We need to use the hash of the previous block.
+        var block1transaction = db.startTransaction(genesisBlockHash);
+        // A random new value we want to overwrite
+        byte[] newValue = {13, 5, 9};
+
+        try {
+            var stateStorageTrie = block1transaction.createOrOpenStorage(stateStorageId);
+            stateStorageTrie.put(address, newValue);
+            // Get the hash root of the state storage
+            byte[] stateStorageRootHash = stateStorageTrie.rootHash();
+            System.out.printf("Genesis storage-state root hash at block1: %s%n", formatter.formatHex(stateStorageRootHash));
+
+            block1transaction.commit(block1Hash);
+        } finally {
+            block1transaction.release();
+        }
+
 ```
 
 # Contribute

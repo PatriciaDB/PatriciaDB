@@ -1,4 +1,4 @@
-package io.patriciadb.core.blocktable;
+package io.patriciadb.core.transactionstable;
 
 import io.patriciadb.fs.BlockReader;
 import io.patriciadb.table.TableOperations;
@@ -6,17 +6,17 @@ import io.patriciadb.table.TableOperations;
 import java.util.List;
 import java.util.Optional;
 
-public class BlockTableOperations {
+public class TransactionTableOperations {
 
-    public static Optional<BlockEntity> findBySnapshotId(BlockTableContext context, BlockReader reader, byte[] snapshotId) {
+    public static Optional<TransactionEntity> findBySnapshotId(TransactionTableContext context, BlockReader reader, byte[] transactionId) {
         return context.getSnapshotIdIndex()
-                .getBySnapshotId(snapshotId)
+                .getBySnapshotId(transactionId)
                 .flatMap(id -> TableOperations.get(context, reader, id));
     }
 
-    public static List<BlockEntity> findByParentHash(BlockTableContext context, BlockReader reader, byte[] parentHash) {
+    public static List<TransactionEntity> findByParentHash(TransactionTableContext context, BlockReader reader, byte[] parentId) {
         return context.getParentBlockHashIndex()
-                .getByParentHash(parentHash)
+                .getByParentHash(parentId)
                 .stream()
                 .map(id -> TableOperations.get(context, reader, id))
                 .filter(Optional::isPresent)
@@ -24,7 +24,7 @@ public class BlockTableOperations {
                 .toList();
     }
 
-    public static List<BlockEntity> findByBlockId(BlockTableContext context, BlockReader reader, long blockId) {
+    public static List<TransactionEntity> findByBlockId(TransactionTableContext context, BlockReader reader, long blockId) {
         return context.getBlockIdIndex()
                 .getByBlockId(blockId)
                 .stream()
