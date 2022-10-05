@@ -2,20 +2,18 @@ package io.patriciadb.fs;
 
 import io.patriciadb.utils.ExceptionUtils;
 
-import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
 public interface PatriciaFileSystem {
 
-    FSSnapshot getSnapshot();
+    FsReadTransaction getSnapshot();
 
-    FSTransaction startTransaction();
+    FsWriteTransaction startTransaction();
 
     void runVacuum();
 
-    CompletableFuture<Void> syncNow();
 
-    default <T> T startTransaction(Function<FSTransaction, T> runnable) {
+    default <T> T startTransaction(Function<FsWriteTransaction, T> runnable) {
         var tr = startTransaction();
         try {
             var res= runnable.apply(tr);
@@ -31,7 +29,7 @@ public interface PatriciaFileSystem {
     void close() throws FileSystemError;
 
 
-    default <T> T getSnapshot(Function<FSSnapshot, T> runnable) {
+    default <T> T getSnapshot(Function<FsReadTransaction, T> runnable) {
         var tr = getSnapshot();
         try {
             return runnable.apply(tr);

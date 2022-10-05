@@ -1,7 +1,7 @@
 package io.patriciadb.core;
 
 import io.patriciadb.core.transactionstable.TransactionTable;
-import io.patriciadb.fs.FSTransaction;
+import io.patriciadb.fs.FsWriteTransaction;
 import io.patriciadb.fs.PatriciaFileSystem;
 import io.patriciadb.index.patriciamerkletrie.utils.TrieDeltaChanges;
 import org.roaringbitmap.longlong.Roaring64NavigableMap;
@@ -28,7 +28,7 @@ public class TransactionDeleteController {
         fileSystem.startTransaction(tr -> deleteTransactionInternal(tr, blockHash));
     }
 
-    private boolean deleteTransactionInternal(FSTransaction transaction, byte[] blockHash) {
+    private boolean deleteTransactionInternal(FsWriteTransaction transaction, byte[] blockHash) {
 
         var blockTable = TransactionTable.open(transaction);
         var blockOpt = blockTable.findByBlockHash(blockHash);

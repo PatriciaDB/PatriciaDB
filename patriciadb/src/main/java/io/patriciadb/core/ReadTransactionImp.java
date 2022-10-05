@@ -5,7 +5,7 @@ import io.patriciadb.StorageNotFoundException;
 import io.patriciadb.StorageRead;
 import io.patriciadb.core.transactionstable.TransactionEntity;
 import io.patriciadb.core.transactionstable.TransactionTableRead;
-import io.patriciadb.fs.FSSnapshot;
+import io.patriciadb.fs.FsReadTransaction;
 import io.patriciadb.index.patriciamerkletrie.PatriciaMerkleTrie;
 import io.patriciadb.index.patriciamerkletrie.format.Formats;
 import io.patriciadb.utils.Bytes;
@@ -19,13 +19,13 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class ReadTransactionImp implements ReadTransaction {
     private final static Logger log = LoggerFactory.getLogger(ReadTransactionImp.class);
-    private final FSSnapshot snapshot;
+    private final FsReadTransaction snapshot;
     private final TransactionTableRead blockTable;
     private final TransactionEntity transactionEntity;
     private final PatriciaMerkleTrie storageIndex;
     private final ConcurrentHashMap<Bytes, StorageReadImp> tries = new ConcurrentHashMap<>();
 
-    public ReadTransactionImp(FSSnapshot snapshot, TransactionTableRead blockTable, TransactionEntity transactionEntity) {
+    public ReadTransactionImp(FsReadTransaction snapshot, TransactionTableRead blockTable, TransactionEntity transactionEntity) {
         this.snapshot = snapshot;
         this.blockTable = blockTable;
         this.transactionEntity = transactionEntity;

@@ -2,10 +2,12 @@ package io.patriciadb.fs;
 
 import io.patriciadb.fs.disk.*;
 import io.patriciadb.fs.disk.directory.imp.*;
+import io.patriciadb.fs.disk.transaction.TransactionManager;
 import io.patriciadb.fs.disk.vacuum.VacuumCleaner;
 import io.patriciadb.fs.properties.FileSystemType;
 import io.patriciadb.fs.properties.FsProperties;
 import io.patriciadb.fs.simple.SimpleFileSystem;
+import io.patriciadb.utils.finalizer.Finalizer;
 import io.patriciadb.utils.lifecycle.BeansHolder;
 
 import java.nio.file.Files;
@@ -56,19 +58,17 @@ public class PatriciaFileSystemFactory {
         DiskMMapDirectory diskMMapDirectory = beanHolder.addBean(() -> new DiskMMapDirectory(dataDirectory.resolve("directory")));
 
         var executorService = beanHolder.addBean(() -> new TaskScheduledExecutor(new ScheduledThreadPoolExecutor(1, new FsThreadFactory())));
-        var callbackExecutor = beanHolder.addBean(() -> new CallbackExecutor(new ThreadPoolExecutor(1, 1, 1, TimeUnit.MINUTES, new LinkedBlockingQueue<>())));
+//        var callbackExecutor = beanHolder.addBean(() -> new CallbackExecutor(new ThreadPoolExecutor(1, 1, 1, TimeUnit.MINUTES, new LinkedBlockingQueue<>())));
 
         var maxWalFileSize = fsProperties.maxWalFileSystem().orElse(WriteAheadLogDirectory.DEFAULT_MAX_WAL_LOG_FILE_SIZE);
         var walDirectory = beanHolder.addBean(() -> new WriteAheadLogDirectory(diskMMapDirectory, walDirFile, maxWalFileSize));
-        var freeBlockIdDirFilter = beanHolder.addBean(() -> new FreeBlocksDirectoryFilter(walDirectory, executorService));
 
-        var versionedDirectory = beanHolder.addBean(() -> new MvccDirectory(freeBlockIdDirFilter));
-        var transactionalDirectory = beanHolder.addBean(() -> new TransactionalDirectoryImp(versionedDirectory, freeBlockIdDirFilter));
         var dataStorage = beanHolder.addBean(() -> DataStorageFactory.openDirectory(dataDirectory, fsProperties));
 
-        var walSyncController = beanHolder.addBean(() -> new WalSyncController(beanHolder, walDirectory, dataStorage, executorService, callbackExecutor));
+        var finalizer = beanHolder.addBean(Finalizer::new);
+        var transactionManager = beanHolder.addBean(() -> new TransactionManager(dataStorage, walDirectory, finalizer));
         var vacuumCleaner = beanHolder.addBean(() -> new VacuumCleaner(walDirectory, diskMMapDirectory, dataStorage, executorService));
-        var diskFileSystem = beanHolder.addBean(() -> new DiskFileSystem(beanHolder, dataStorage, transactionalDirectory, walSyncController, vacuumCleaner));
+        var diskFileSystem = beanHolder.addBean(() -> new DiskFileSystem(beanHolder, dataStorage, vacuumCleaner,transactionManager));
         beanHolder.start();
         return diskFileSystem;
     }

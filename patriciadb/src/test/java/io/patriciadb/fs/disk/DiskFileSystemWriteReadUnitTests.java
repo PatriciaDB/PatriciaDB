@@ -12,6 +12,8 @@ import org.junit.jupiter.api.Test;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 
 public class DiskFileSystemWriteReadUnitTests {
 
@@ -70,5 +72,39 @@ public class DiskFileSystemWriteReadUnitTests {
             FileUtils.deleteDirectory(tempDir.toFile());
         }
 
+    }
+
+    @Test
+    public void reuseUnusedBlockIds() throws Exception {
+        var tempDir = Files.createTempDirectory("patricia-test");
+        var props = new HashMap<String, String>();
+        props.put(PropertyConstants.FS_TYPE, FileSystemType.APPENDER.toString());
+        props.put(PropertyConstants.FS_DATA_FOLDER, tempDir.toString());
+        props.put(PropertyConstants.FS_MAX_DATA_FILE_SIZE, String.valueOf(Space.MEGABYTE.toBytes(256)));
+        try {
+            System.out.println(tempDir);
+            var fs = PatriciaFileSystemFactory.createFromProperties(props);
+            var tr = fs.startTransaction();
+            Set<Long> blockIds = new HashSet<>();
+            for (int i = 0; i < 100; i++) {
+                long block = tr.write(ByteBuffer.allocate(10));
+                blockIds.add(block);
+            }
+            tr.release();// Equivalent of rolling back
+
+            var tr2 = fs.startTransaction();
+
+            for (int i = 0; i < 100; i++) {
+                long block = tr2.write(ByteBuffer.allocate(10));
+                if (!blockIds.contains(block)) {
+                    throw new IllegalStateException();
+                }
+            }
+            tr2.release();
+
+
+        } finally {
+            FileUtils.deleteDirectory(tempDir.toFile());
+        }
     }
 }

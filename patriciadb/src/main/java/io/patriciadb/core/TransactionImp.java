@@ -5,7 +5,7 @@ import io.patriciadb.StorageNotFoundException;
 import io.patriciadb.Transaction;
 import io.patriciadb.core.transactionstable.TransactionEntity;
 import io.patriciadb.core.transactionstable.TransactionTable;
-import io.patriciadb.fs.FSTransaction;
+import io.patriciadb.fs.FsWriteTransaction;
 import io.patriciadb.index.patriciamerkletrie.PatriciaMerkleTrie;
 import io.patriciadb.index.patriciamerkletrie.format.Formats;
 import io.patriciadb.index.patriciamerkletrie.utils.PersistedNodeObserverTracker;
@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class TransactionImp implements Transaction {
     private final static Logger log = LoggerFactory.getLogger(TransactionImp.class);
-    private final FSTransaction transaction;
+    private final FsWriteTransaction transaction;
     private final TransactionTable blockTable;
     private final TransactionEntity parentEntity;
     private final PatriciaMerkleTrie storageIndex;
@@ -32,7 +32,7 @@ public class TransactionImp implements Transaction {
     private final PersistedNodeObserverTracker persistedNodeObserverTracker = new PersistedNodeObserverTracker();
     private final AtomicBoolean disposed = new AtomicBoolean(false);
 
-    public TransactionImp(FSTransaction transaction, TransactionTable blockTable, TransactionEntity parentEntity) {
+    public TransactionImp(FsWriteTransaction transaction, TransactionTable blockTable, TransactionEntity parentEntity) {
         this.transaction = transaction;
         this.blockTable = blockTable;
         this.parentEntity = parentEntity;

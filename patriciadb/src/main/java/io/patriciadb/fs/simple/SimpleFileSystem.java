@@ -1,13 +1,12 @@
 package io.patriciadb.fs.simple;
 
-import io.patriciadb.fs.FSSnapshot;
-import io.patriciadb.fs.FSTransaction;
+import io.patriciadb.fs.FsReadTransaction;
+import io.patriciadb.fs.FsWriteTransaction;
 import io.patriciadb.utils.VarInt;
 import io.patriciadb.fs.PatriciaFileSystem;
 
 import java.nio.ByteBuffer;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -37,11 +36,6 @@ public class SimpleFileSystem implements PatriciaFileSystem {
     }
 
     @Override
-    public CompletableFuture<Void> syncNow() {
-        return CompletableFuture.completedFuture(null);
-    }
-
-    @Override
     public void close() {
         data.clear();
     }
@@ -53,16 +47,16 @@ public class SimpleFileSystem implements PatriciaFileSystem {
     }
 
     @Override
-    public FSSnapshot getSnapshot() {
+    public FsReadTransaction getSnapshot() {
         return new LocalReadTransaction();
     }
 
     @Override
-    public FSTransaction startTransaction() {
+    public FsWriteTransaction startTransaction() {
         return new LocalTransaction();
     }
 
-    private class LocalReadTransaction implements FSSnapshot {
+    private class LocalReadTransaction implements FsReadTransaction {
 
 
         @Override
@@ -80,7 +74,7 @@ public class SimpleFileSystem implements PatriciaFileSystem {
         }
     }
 
-    private class LocalTransaction implements FSTransaction {
+    private class LocalTransaction implements FsWriteTransaction {
         private final ConcurrentHashMap<Long, Optional<ByteBuffer>> localCopy = new ConcurrentHashMap<>();
 
         @Override
