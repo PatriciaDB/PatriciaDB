@@ -23,6 +23,7 @@ public class TransactionManager implements PatriciaController {
     private final AtomicLong transactionCounter = new AtomicLong(1);
     private final FreeBlockIdStore freeBlockIdStore;
     private final TransactionHandler transactionHandler = new TransactionHandlerImp();
+    private final AtomicLong currentDatabaseVersion = new AtomicLong(1);
 
     public TransactionManager(DataStorage dataStorage, DiskDirectory directory, Finalizer finalizer) {
         this.dataStorage = dataStorage;
@@ -36,15 +37,15 @@ public class TransactionManager implements PatriciaController {
     }
 
     @Override
-    public void destroy()  {
+    public void destroy() {
         activeTransactions.values().forEach(tr -> tr.setStatus(TransactionStatus.ROLLED_BACK));
     }
 
     public synchronized FsWriteTransaction startWriteTransaction() {
         var txId = transactionCounter.getAndIncrement();
-        var transaction = new TransactionSession(transactionHandler, txId, dataStorage, directory, freeBlockIdStore);
+        var transaction = new TransactionWriteSession(transactionHandler, txId, dataStorage, directory, freeBlockIdStore);
         activeTransactions.put(txId, transaction);
-        var session = transaction.createWriteSession();
+        var session = transaction.createSession();
         finalizer.register(session, () -> releaseInternal(transaction));
         log.debug("Starting write transaction with Id {}", txId);
         return session;
@@ -52,27 +53,32 @@ public class TransactionManager implements PatriciaController {
 
     public synchronized FsReadTransaction startReadTransaction() {
         var txId = transactionCounter.getAndIncrement();
-        var transaction = new TransactionSession(transactionHandler, txId, dataStorage, directory, freeBlockIdStore);
+        var transaction = new TransactionReadSession(transactionHandler, txId, dataStorage, directory);
         activeTransactions.put(txId, transaction);
-        var session = transaction.createReadSession();
+        var session = transaction.createSession();
         finalizer.register(session, () -> releaseInternal(transaction));
         log.debug("Starting read transaction with Id {}", txId);
         return session;
     }
 
-    private void commitInternal(TransactionSession transaction) {
+    private void commitInternal(TransactionWriteSession transaction) {
         if (transaction.getStatus() != TransactionStatus.RUNNING) {
             throw new IllegalStateException("Illegal state " + transaction.getStatus());
         }
         if (!activeTransactions.containsKey(transaction.getId())) {
             throw new IllegalStateException("Not an active transaction");
         }
+
+
         activeTransactions.remove(transaction.getId());
         try {
 
             dataStorage.flushAndSync();
 
             synchronized (this) {
+                if (transaction.getId() < currentDatabaseVersion.get()) {
+                    throw new IllegalStateException("A higher database version is now available");
+                }
                 var changes = transaction.getChanges();
                 if (activeTransactions.size() > 0) {
                     var prevDelta = directory.get(changes.keysView());
@@ -81,9 +87,9 @@ public class TransactionManager implements PatriciaController {
                     }
                 }
                 directory.set(changes);
+                currentDatabaseVersion.set(transaction.getId());
             }
             directory.sync();
-
 
             transaction.setStatus(TransactionStatus.COMMITTED);
         } catch (Throwable t) {
@@ -103,17 +109,19 @@ public class TransactionManager implements PatriciaController {
         if (transaction.getStatus() == TransactionStatus.RUNNING) {
             transaction.setStatus(TransactionStatus.ROLLED_BACK);
             // let's re-use the taken blockId for the next transactions
-            var newBlockIds = transaction.getNewBlockIds();
-            if (newBlockIds.getLongCardinality() > 0) {
-                log.trace("{} blockIds recovered from uncommitted transaction", newBlockIds.getLongCardinality());
-                freeBlockIdStore.addFreeBlockIds(newBlockIds);
+            if (transaction instanceof TransactionWriteSession transactionWriteSession) {
+                var newBlockIds = transactionWriteSession.getNewBlockIds();
+                if (newBlockIds.getLongCardinality() > 0) {
+                    log.trace("{} blockIds recovered from uncommitted transaction", newBlockIds.getLongCardinality());
+                    freeBlockIdStore.addFreeBlockIds(newBlockIds);
+                }
             }
         }
 
     }
 
     private class TransactionHandlerImp implements TransactionHandler {
-        public void commit(TransactionSession transaction) {
+        public void commit(TransactionWriteSession transaction) {
             commitInternal(transaction);
         }
 

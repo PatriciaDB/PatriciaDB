@@ -1,7 +1,7 @@
 package io.patriciadb.fs.disk.transaction;
 
 public interface TransactionHandler {
-      void commit(TransactionSession handler);
+      void commit(TransactionWriteSession handler);
 
       void release(TransactionSession handler);
 
