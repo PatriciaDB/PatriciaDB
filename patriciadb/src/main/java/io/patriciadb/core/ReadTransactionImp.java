@@ -20,15 +20,11 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ReadTransactionImp implements ReadTransaction {
     private final static Logger log = LoggerFactory.getLogger(ReadTransactionImp.class);
     private final FsReadTransaction snapshot;
-    private final TransactionTableRead blockTable;
-    private final TransactionEntity transactionEntity;
     private final PatriciaMerkleTrie storageIndex;
     private final ConcurrentHashMap<Bytes, StorageReadImp> tries = new ConcurrentHashMap<>();
 
-    public ReadTransactionImp(FsReadTransaction snapshot, TransactionTableRead blockTable, TransactionEntity transactionEntity) {
+    public ReadTransactionImp(FsReadTransaction snapshot, TransactionEntity transactionEntity) {
         this.snapshot = snapshot;
-        this.blockTable = blockTable;
-        this.transactionEntity = transactionEntity;
         this.storageIndex = PatriciaMerkleTrie.open(Formats.PLAIN, transactionEntity.getIndexRootNodeId(), snapshot);
     }
 

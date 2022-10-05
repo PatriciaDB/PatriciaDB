@@ -45,7 +45,7 @@ public class PatriciaDBImp implements PatriciaDB {
             if (blockInfo.isEmpty()) {
                 throw new IllegalArgumentException("BlockHash not found " + Arrays.toString(blockHash));
             }
-            return new ReadTransactionImp(snapshot, blockTable, blockInfo.get());
+            return new ReadTransactionImp(snapshot, blockInfo.get());
         } catch (Throwable t) {
             snapshot.release();
             throw ExceptionUtils.sneakyThrow(t);
@@ -54,17 +54,16 @@ public class PatriciaDBImp implements PatriciaDB {
 
     @Override
     public Transaction startTransaction(byte[] parentBlockHash) {
-        var tr = fileSystem.startTransaction();
+        var tr = fileSystem.getSnapshot();
         try {
-            var blockTable = TransactionTable.open(tr);
+            var blockTable = TransactionTable.openReadOnly(tr);
             var parentBlockInfo = blockTable.findByBlockHash(parentBlockHash);
             if (parentBlockInfo.isEmpty()) {
                 throw new IllegalArgumentException("BlockHash not found " + Arrays.toString(parentBlockHash));
             }
-            return new TransactionImp(tr, blockTable, parentBlockInfo.get());
-        } catch (Throwable t) {
+            return new TransactionImp(fileSystem, parentBlockInfo.get());
+        } finally {
             tr.release();
-            throw ExceptionUtils.sneakyThrow(t);
         }
     }
 
@@ -72,17 +71,15 @@ public class PatriciaDBImp implements PatriciaDB {
     public Transaction startTransaction() {
         var tr = fileSystem.startTransaction();
         try {
-            var blockTable = TransactionTable.open(tr);
             var parentBlock = new TransactionEntity();
             parentBlock.setExtra(new byte[0]);
             parentBlock.setCreationTime(Instant.now());
             parentBlock.setTransactionId(new byte[0]);
             parentBlock.setParentTransactionId(new byte[0]);
             parentBlock.setIndexRootNodeId(0);
-            return new TransactionImp(tr, blockTable, parentBlock);
-        } catch (Throwable t) {
+            return new TransactionImp(fileSystem, parentBlock);
+        } finally {
             tr.release();
-            throw ExceptionUtils.sneakyThrow(t);
         }
     }
 

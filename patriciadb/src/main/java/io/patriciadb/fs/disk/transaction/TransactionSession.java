@@ -80,7 +80,7 @@ public class TransactionSession {
 
     private void checkState() {
         if(status.get()!=TransactionStatus.RUNNING) {
-            throw new IllegalStateException("Transaction is not disposed");
+            throw new IllegalStateException("Transaction is disposed");
         }
     }
 
