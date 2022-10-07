@@ -5,8 +5,7 @@ import io.patriciadb.StorageNotFoundException;
 import io.patriciadb.Transaction;
 import io.patriciadb.core.transactionstable.TransactionEntity;
 import io.patriciadb.core.transactionstable.TransactionTable;
-import io.patriciadb.fs.FsReadTransaction;
-import io.patriciadb.fs.PatriciaFileSystem;
+import io.patriciadb.fs.FsWriteTransaction;
 import io.patriciadb.index.patriciamerkletrie.PatriciaMerkleTrie;
 import io.patriciadb.index.patriciamerkletrie.format.Formats;
 import io.patriciadb.index.patriciamerkletrie.utils.PersistedNodeObserverTracker;
@@ -25,25 +24,24 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class TransactionImp implements Transaction {
     private final static Logger log = LoggerFactory.getLogger(TransactionImp.class);
-
-    private final PatriciaFileSystem fileSystem;
-    private final FsReadTransaction readTransaction;
+    private final FsWriteTransaction transaction;
+    private final TransactionTable blockTable;
     private final TransactionEntity parentEntity;
     private final PatriciaMerkleTrie storageIndex;
     private final ConcurrentHashMap<Bytes, StorageImp> tries = new ConcurrentHashMap<>();
     private final PersistedNodeObserverTracker persistedNodeObserverTracker = new PersistedNodeObserverTracker();
     private final AtomicBoolean disposed = new AtomicBoolean(false);
 
-    public TransactionImp(PatriciaFileSystem fileSystem, TransactionEntity parentEntity) {
-        this.readTransaction = fileSystem.getSnapshot();
-        this.fileSystem = fileSystem;
+    public TransactionImp(FsWriteTransaction transaction, TransactionTable blockTable, TransactionEntity parentEntity) {
+        this.transaction = transaction;
+        this.blockTable = blockTable;
         this.parentEntity = parentEntity;
-        this.storageIndex = PatriciaMerkleTrie.openOrCreate(Formats.PLAIN, parentEntity.getIndexRootNodeId(), readTransaction, persistedNodeObserverTracker);
+        this.storageIndex = PatriciaMerkleTrie.openOrCreate(Formats.PLAIN, parentEntity.getIndexRootNodeId(), transaction, persistedNodeObserverTracker);
     }
 
     @Override
     public void release() {
-        readTransaction.release();
+        transaction.release();
     }
 
     @Override
@@ -54,7 +52,7 @@ public class TransactionImp implements Transaction {
             if (res == null) {
                 throw new StorageNotFoundException("Storage " + Arrays.toString(storageId) + " not found");
             }
-            var trie = PatriciaMerkleTrie.open(Formats.ETHEREUM, VarInt.getVarLong(ByteBuffer.wrap(res)), readTransaction, persistedNodeObserverTracker);
+            var trie = PatriciaMerkleTrie.open(Formats.ETHEREUM, VarInt.getVarLong(ByteBuffer.wrap(res)), transaction, persistedNodeObserverTracker);
             return new StorageImp(trie);
         });
     }
@@ -83,7 +81,7 @@ public class TransactionImp implements Transaction {
             if (res == null) {
                 trie = PatriciaMerkleTrie.createNew(Formats.ETHEREUM, persistedNodeObserverTracker);
             } else {
-                trie = PatriciaMerkleTrie.open(Formats.ETHEREUM, VarInt.getVarLong(ByteBuffer.wrap(res)), readTransaction, persistedNodeObserverTracker);
+                trie = PatriciaMerkleTrie.open(Formats.ETHEREUM, VarInt.getVarLong(ByteBuffer.wrap(res)), transaction, persistedNodeObserverTracker);
             }
             return new StorageImp(trie);
         });
@@ -110,52 +108,39 @@ public class TransactionImp implements Transaction {
     }
 
     private void commitInternal(byte[] blockHash, long blockId, byte[] extra) {
-        var writeTx = fileSystem.startTransaction();
-        try {
-            var blockTable = TransactionTable.open(writeTx);
-            Objects.requireNonNull(blockHash, "BlockHash cannot be null");
-            if (extra == null) extra = new byte[0];
-            if (extra.length > 2048) {
-                throw new IllegalArgumentException("Extra data cannot be longer than 2048 bytes");
-            }
-            if (parentEntity.getTransactionId().length > 0) {
-                var parentTransaction = blockTable.findByBlockHash(parentEntity.getTransactionId());
-                if (parentTransaction.isEmpty()) {
-                    throw new IllegalStateException("Parent transaction not found");
-                }
-            }
-            for (var entry : tries.entrySet()) {
-                var name = entry.getKey();
-                var storage = entry.getValue();
-
-                storage.trie.getRootHash();
-                long rootId = storage.trie.persist(writeTx);
-                storageIndex.put(name.getBytes(), VarInt.varLong(rootId));
-                log.debug("Persisted storage {} rootId {}", name, rootId);
-            }
-            long storageIndexRootId = storageIndex.persist(writeTx);
-
-            var newNodes = persistedNodeObserverTracker.getNewNodes();
-            var lostNodes = persistedNodeObserverTracker.getLostNodes();
-
-            log.debug("Commit Prepare - New nodes count {}, Lost Nodes Reference {}", newNodes.getLongCardinality(), lostNodes.getLongCardinality());
-            TransactionEntity transactionEntity = new TransactionEntity();
-            transactionEntity.setTransactionId(blockHash);
-            transactionEntity.setBlockNumber(blockId);
-            transactionEntity.setCreationTime(Instant.now());
-            transactionEntity.setParentTransactionId(parentEntity.getTransactionId());
-            transactionEntity.setIndexRootNodeId(storageIndexRootId);
-            transactionEntity.setExtra(extra);
-            transactionEntity.setNewNodeIds(BitMapUtils.serialize(newNodes));
-            transactionEntity.setLostNodeIds(BitMapUtils.serialize(lostNodes));
-            blockTable.insert(transactionEntity);
-            blockTable.persist();
-            writeTx.commit();
-            log.debug("Commit completed");
-        } finally {
-            readTransaction.release();
-            writeTx.release();
+        Objects.requireNonNull(blockHash, "BlockHash cannot be null");
+        if (extra == null) extra = new byte[0];
+        if (extra.length > 2048) {
+            throw new IllegalArgumentException("Extra data cannot be longer than 2048 bytes");
         }
+        for (var entry : tries.entrySet()) {
+            var name = entry.getKey();
+            var storage = entry.getValue();
+
+            storage.trie.getRootHash();
+            long rootId = storage.trie.persist(transaction);
+            storageIndex.put(name.getBytes(), VarInt.varLong(rootId));
+            log.debug("Persisted storage {} rootId {}", name, rootId);
+        }
+        long storageIndexRootId = storageIndex.persist(transaction);
+
+        var newNodes = persistedNodeObserverTracker.getNewNodes();
+        var lostNodes = persistedNodeObserverTracker.getLostNodes();
+
+        log.debug("Commit Prepare - New nodes count {}, Lost Nodes Reference {}", newNodes.getLongCardinality(), lostNodes.getLongCardinality());
+        TransactionEntity transactionEntity = new TransactionEntity();
+        transactionEntity.setTransactionId(blockHash);
+        transactionEntity.setBlockNumber(blockId);
+        transactionEntity.setCreationTime(Instant.now());
+        transactionEntity.setParentTransactionId(parentEntity.getTransactionId());
+        transactionEntity.setIndexRootNodeId(storageIndexRootId);
+        transactionEntity.setExtra(extra);
+        transactionEntity.setNewNodeIds(BitMapUtils.serialize(newNodes));
+        transactionEntity.setLostNodeIds(BitMapUtils.serialize(lostNodes));
+        blockTable.insert(transactionEntity);
+        blockTable.persist();
+        transaction.commit();
+        log.debug("Commit completed");
     }
 
     private class StorageImp implements Storage {

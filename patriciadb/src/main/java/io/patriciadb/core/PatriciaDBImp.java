@@ -40,12 +40,12 @@ public class PatriciaDBImp implements PatriciaDB {
     public ReadTransaction readTransaction(byte[] blockHash) {
         var snapshot = fileSystem.getSnapshot();
         try {
-            var blockTable = TransactionTable.openReadOnly(snapshot);
-            var blockInfo = blockTable.findByBlockHash(blockHash);
-            if (blockInfo.isEmpty()) {
+            var transactionTable = TransactionTable.openReadOnly(snapshot);
+            var transactionEntity = transactionTable.findByBlockHash(blockHash);
+            if (transactionEntity.isEmpty()) {
                 throw new IllegalArgumentException("BlockHash not found " + Arrays.toString(blockHash));
             }
-            return new ReadTransactionImp(snapshot, blockInfo.get());
+            return new ReadTransactionImp(snapshot, transactionTable, transactionEntity.get());
         } catch (Throwable t) {
             snapshot.release();
             throw ExceptionUtils.sneakyThrow(t);
@@ -54,16 +54,17 @@ public class PatriciaDBImp implements PatriciaDB {
 
     @Override
     public Transaction startTransaction(byte[] parentBlockHash) {
-        var tr = fileSystem.getSnapshot();
+        var tr = fileSystem.startTransaction();
         try {
-            var blockTable = TransactionTable.openReadOnly(tr);
-            var parentBlockInfo = blockTable.findByBlockHash(parentBlockHash);
-            if (parentBlockInfo.isEmpty()) {
+            var blockTable = TransactionTable.open(tr);
+            var parentTransactionEntity = blockTable.findByBlockHash(parentBlockHash);
+            if (parentTransactionEntity.isEmpty()) {
                 throw new IllegalArgumentException("BlockHash not found " + Arrays.toString(parentBlockHash));
             }
-            return new TransactionImp(fileSystem, parentBlockInfo.get());
-        } finally {
+            return new TransactionImp(tr, blockTable, parentTransactionEntity.get());
+        } catch (Throwable t) {
             tr.release();
+            throw ExceptionUtils.sneakyThrow(t);
         }
     }
 
@@ -71,15 +72,17 @@ public class PatriciaDBImp implements PatriciaDB {
     public Transaction startTransaction() {
         var tr = fileSystem.startTransaction();
         try {
-            var parentBlock = new TransactionEntity();
-            parentBlock.setExtra(new byte[0]);
-            parentBlock.setCreationTime(Instant.now());
-            parentBlock.setTransactionId(new byte[0]);
-            parentBlock.setParentTransactionId(new byte[0]);
-            parentBlock.setIndexRootNodeId(0);
-            return new TransactionImp(fileSystem, parentBlock);
-        } finally {
+            var transactionTable = TransactionTable.open(tr);
+            var parentTransaction = new TransactionEntity();
+            parentTransaction.setExtra(new byte[0]);
+            parentTransaction.setCreationTime(Instant.now());
+            parentTransaction.setTransactionId(new byte[0]);
+            parentTransaction.setParentTransactionId(new byte[0]);
+            parentTransaction.setIndexRootNodeId(0);
+            return new TransactionImp(tr, transactionTable, parentTransaction);
+        } catch (Throwable t) {
             tr.release();
+            throw ExceptionUtils.sneakyThrow(t);
         }
     }
 
