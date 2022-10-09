@@ -6,6 +6,7 @@ import io.patriciadb.fs.disk.datastorage.DataStorage;
 import io.patriciadb.fs.disk.directory.DiskDirectory;
 import io.patriciadb.utils.finalizer.Finalizer;
 import io.patriciadb.utils.lifecycle.PatriciaController;
+import org.eclipse.collections.impl.map.mutable.primitive.LongLongHashMap;
 import org.roaringbitmap.longlong.Roaring64NavigableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -81,13 +82,21 @@ public class TransactionManager implements PatriciaController {
                 }
                 var changes = transaction.getChanges();
                 if (activeTransactions.size() > 0) {
-                    var prevDelta = directory.get(changes.keysView());
+                    var prevDelta = new LongLongHashMap();
+                    changes.getNewBlocks().forEach(blockId -> prevDelta.put(blockId, 0));
+                    directory.forEach(changes.getDeletedBlocks(), prevDelta::put);
+                    directory.get(changes.getUpdatedBlocks().keysView()).forEachKeyValue(prevDelta::put);
                     for (var activeTx : activeTransactions.values()) {
                         activeTx.addDeltaChange(prevDelta);
                     }
                 }
                 directory.set(changes);
                 currentDatabaseVersion.set(transaction.getId());
+                freeBlockIdStore.addFreeBlockIds(changes.getDeletedBlocks());
+                log.trace("COMMIT transaction {}. {} new blocks, {} updated blocks, {} deleted blocks",
+                        transaction.getId(), changes.getNewBlocks().size(),
+                        changes.getUpdatedBlocks().size(), changes.getDeletedBlocks().getLongCardinality());
+
             }
             directory.sync();
 

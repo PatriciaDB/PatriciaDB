@@ -3,10 +3,12 @@ package io.patriciadb.fs.disk.directory.imp;
 import io.patriciadb.fs.disk.DirectoryError;
 import io.patriciadb.fs.disk.directory.Directory;
 import io.patriciadb.fs.disk.directory.DiskDirectory;
+import io.patriciadb.fs.disk.transaction.Batch;
 import io.patriciadb.utils.Space;
 import io.patriciadb.utils.lifecycle.PatriciaController;
 import org.eclipse.collections.api.LongIterable;
 import org.eclipse.collections.impl.map.mutable.primitive.LongLongHashMap;
+import org.roaringbitmap.longlong.Roaring64NavigableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,8 +56,17 @@ public class WriteAheadLogDirectory implements DiskDirectory, PatriciaController
         logWriter.reset();
     }
 
+    public synchronized void forEach(Roaring64NavigableMap bitmap, BlockIdConsumer consumer) {
+        bitmap.forEach(blockId -> {
+            var pointer = mergedMaps.containsKey(blockId)
+                    ? mergedMaps.get(blockId)
+                    : directory.get(blockId);
+            consumer.consume(blockId, pointer);
+        });
+    }
+
     @Override
-    public void forEach(BlockIdConsumer consumer) {
+    public synchronized void forEach(BlockIdConsumer consumer) {
         checkState();
         if (mergedMaps.isEmpty()) {
             directory.forEach(consumer);
@@ -96,7 +107,15 @@ public class WriteAheadLogDirectory implements DiskDirectory, PatriciaController
      *
      * @param batch
      */
-    public synchronized void set(LongLongHashMap batch) {
+    public synchronized void set(Batch batch) {
+        checkState();
+        batch.getDeletedBlocks().forEach(mergedMaps::remove);
+        batch.getNewBlocks().forEachKeyValue(mergedMaps::put);
+        batch.getUpdatedBlocks().forEachKeyValue(mergedMaps::put);
+    }
+
+    @Override
+    public synchronized void set(LongLongHashMap batch) throws DirectoryError {
         checkState();
         mergedMaps.putAll(batch);
     }

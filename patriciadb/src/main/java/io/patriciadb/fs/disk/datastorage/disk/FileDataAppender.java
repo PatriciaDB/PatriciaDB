@@ -75,7 +75,9 @@ public class FileDataAppender implements FileAppender {
 
         // We can truncate in linux/macos and still have bigger memoryMap (out of file space)
         // However in Windows the following will not have effect
-        ch.truncate(fileSize);
+        if(!ch.isReadOnly()) {
+            ch.truncate(fileSize);
+        }
     }
 
 

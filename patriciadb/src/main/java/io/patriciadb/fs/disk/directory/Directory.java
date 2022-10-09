@@ -1,13 +1,10 @@
 package io.patriciadb.fs.disk.directory;
 
 import io.patriciadb.fs.disk.DirectoryError;
-import io.patriciadb.fs.disk.utils.LongLongPair;
+import io.patriciadb.fs.disk.transaction.Batch;
 import org.eclipse.collections.api.LongIterable;
 import org.eclipse.collections.impl.map.mutable.primitive.LongLongHashMap;
 import org.roaringbitmap.longlong.Roaring64NavigableMap;
-
-import java.util.List;
-import java.util.function.Predicate;
 
 public interface Directory  {
 
@@ -21,7 +18,15 @@ public interface Directory  {
         return map;
     }
 
-    void set(LongLongHashMap changeMap) throws DirectoryError;
+    default void forEach(Roaring64NavigableMap bitmap, BlockIdConsumer consumer) {
+        bitmap.forEach(blockId -> {
+            consumer.consume(blockId, get(blockId));
+        });
+    }
+
+    void set(Batch changeMap) throws DirectoryError;
+
+    void set(LongLongHashMap batch) throws DirectoryError;
 
     interface BlockIdConsumer {
         void consume(long blockId, long pointer);

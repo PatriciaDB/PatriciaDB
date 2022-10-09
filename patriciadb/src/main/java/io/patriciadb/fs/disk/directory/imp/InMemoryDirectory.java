@@ -2,6 +2,7 @@ package io.patriciadb.fs.disk.directory.imp;
 
 import io.patriciadb.fs.disk.DirectoryError;
 import io.patriciadb.fs.disk.directory.Directory;
+import io.patriciadb.fs.disk.transaction.Batch;
 import io.patriciadb.utils.lifecycle.PatriciaController;
 import org.eclipse.collections.impl.map.mutable.primitive.LongLongHashMap;
 
@@ -40,9 +41,17 @@ public class InMemoryDirectory implements Directory, Closeable, PatriciaControll
     }
 
     @Override
-    public synchronized void set(LongLongHashMap changeMap) throws DirectoryError {
+    public synchronized void set(Batch changeMap) throws DirectoryError {
         checkState();
-        for (var e : changeMap.keyValuesView()) {
+        changeMap.getDeletedBlocks().forEach(directory::remove);
+        changeMap.getNewBlocks().forEachKeyValue(directory::put);
+        changeMap.getUpdatedBlocks().forEachKeyValue(directory::put);
+    }
+
+    @Override
+    public void set(LongLongHashMap batch) throws DirectoryError {
+        checkState();
+        for (var e : batch.keyValuesView()) {
             long k = e.getOne();
             long v = e.getTwo();
             if (v == 0) {

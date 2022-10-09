@@ -3,13 +3,12 @@ package io.patriciadb.fs.disk.transaction;
 import io.patriciadb.fs.FsWriteTransaction;
 import io.patriciadb.fs.disk.datastorage.DataStorage;
 import io.patriciadb.fs.disk.directory.Directory;
-import org.eclipse.collections.impl.map.mutable.primitive.LongLongHashMap;
 import org.roaringbitmap.longlong.Roaring64NavigableMap;
 
 import java.nio.ByteBuffer;
 
 public class TransactionWriteSession extends TransactionSessionAbs implements TransactionSession {
-    private final LongLongHashMap changes = new LongLongHashMap();
+    private final BatchUpdate batchUpdate = new BatchUpdate();
     private final Roaring64NavigableMap newBlockIds = new Roaring64NavigableMap();
     private final FreeBlockIdStore freeBlockIdStore;
 
@@ -26,8 +25,8 @@ public class TransactionWriteSession extends TransactionSessionAbs implements Tr
         return newBlockIds;
     }
 
-    public LongLongHashMap getChanges() {
-        return changes;
+    public BatchUpdate getChanges() {
+        return batchUpdate;
     }
 
     public FsWriteTransaction createSession() {
@@ -56,8 +55,8 @@ public class TransactionWriteSession extends TransactionSessionAbs implements Tr
         @Override
         public synchronized ByteBuffer read(long blockId) {
             checkState();
-            long dataPointer = changes.containsKey(blockId)
-                    ? changes.get(blockId)
+            long dataPointer = batchUpdate.contains(blockId)
+                    ? batchUpdate.get(blockId)
                     : readPointer(blockId);
             if (dataPointer == 0) {
                 return null;
@@ -71,7 +70,7 @@ public class TransactionWriteSession extends TransactionSessionAbs implements Tr
             long dataPointer = dataStorage.write(data);
             long blockId = freeBlockIdStore.getNextFreeBlockId();
             newBlockIds.add(blockId);
-            changes.put(blockId, dataPointer);
+            batchUpdate.addNew(blockId, dataPointer);
             return blockId;
         }
 
@@ -79,13 +78,14 @@ public class TransactionWriteSession extends TransactionSessionAbs implements Tr
         public synchronized void overwrite(long blockId, ByteBuffer data) {
             checkState();
             long dataPointer = dataStorage.write(data);
-            changes.put(blockId, dataPointer);
+            batchUpdate.update(blockId, dataPointer);
+
         }
 
         @Override
         public synchronized void delete(long blockId) {
             checkState();
-            changes.put(blockId, 0);
+            batchUpdate.delete(blockId);
         }
 
         @Override

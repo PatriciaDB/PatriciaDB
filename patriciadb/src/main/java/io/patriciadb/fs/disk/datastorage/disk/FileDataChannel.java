@@ -15,7 +15,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class FileDataChannel implements Closeable {
-    public enum OpenMode {READ_ONLY,READ_WRITE}
+    public enum OpenMode {READ_ONLY, READ_WRITE}
 
     private final Path path;
     private final FileChannel ch;
@@ -35,8 +35,8 @@ public class FileDataChannel implements Closeable {
         return header.fileId();
     }
 
-    public long write(ByteBuffer buffer, long position) throws IOException{
-        if(isReadOnly.get()) {
+    public long write(ByteBuffer buffer, long position) throws IOException {
+        if (isReadOnly.get()) {
             throw new IllegalStateException("FileData is readonly");
         }
         return ch.write(buffer, position);
@@ -73,48 +73,49 @@ public class FileDataChannel implements Closeable {
     }
 
     public void truncate(long to) throws IOException {
-        if(isReadOnly.get()) {
-            throw new IllegalStateException("FileData is readonly");
+        if (isReadOnly.get()) {
+            throw new IllegalStateException("FileData " + header.fileId() + " is readonly");
         }
         ch.truncate(to);
     }
 
-    public void force(boolean metadata) throws IOException{
+    public void force(boolean metadata) throws IOException {
         ch.force(metadata);
     }
-    public static FileDataChannel create(Path path, int fileId, long sequenceNumber) throws IOException{
-        if(Files.exists(path)) {
-            throw new IOException("FileData does exist: "+path);
+
+    public static FileDataChannel create(Path path, int fileId, long sequenceNumber) throws IOException {
+        if (Files.exists(path)) {
+            throw new IOException("FileData does exist: " + path);
         }
         Set<StandardOpenOption> openOptionSet = new HashSet<>();
         openOptionSet.add(StandardOpenOption.READ);
         openOptionSet.add(StandardOpenOption.CREATE_NEW);
         openOptionSet.add(StandardOpenOption.WRITE);
 
-        FileChannel ch = FileChannel.open(path,openOptionSet);
+        FileChannel ch = FileChannel.open(path, openOptionSet);
         try {
             var header = FileDataHeader.writeHeader(ch, fileId, sequenceNumber);
             return new FileDataChannel(path, ch, header, OpenMode.READ_WRITE);
-        }catch (Throwable e) {
+        } catch (Throwable e) {
             ch.close();
             throw ExceptionUtils.sneakyThrow(e);
         }
     }
 
     public static FileDataChannel open(Path path, OpenMode mode) throws IOException {
-        if(!Files.exists(path)) {
-            throw new IOException("FileData doesn't exist: "+path);
+        if (!Files.exists(path)) {
+            throw new IOException("FileData doesn't exist: " + path);
         }
         Set<StandardOpenOption> openOptionSet = new HashSet<>();
         openOptionSet.add(StandardOpenOption.READ);
-        if(mode==OpenMode.READ_WRITE) {
+        if (mode == OpenMode.READ_WRITE) {
             openOptionSet.add(StandardOpenOption.WRITE);
         }
-        FileChannel ch = FileChannel.open(path,openOptionSet);
+        FileChannel ch = FileChannel.open(path, openOptionSet);
         try {
             var header = FileDataHeader.readHeader(ch);
             return new FileDataChannel(path, ch, header, mode);
-        }catch (Throwable e) {
+        } catch (Throwable e) {
             ch.close();
             throw ExceptionUtils.sneakyThrow(e);
         }

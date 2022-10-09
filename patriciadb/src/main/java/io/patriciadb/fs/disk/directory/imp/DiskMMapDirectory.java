@@ -5,10 +5,12 @@ import io.patriciadb.fs.disk.DirectoryError;
 import io.patriciadb.fs.disk.directory.BlockIdPredicate;
 import io.patriciadb.fs.disk.directory.DiskDirectory;
 import io.patriciadb.fs.disk.directory.utils.SegmentUtils;
+import io.patriciadb.fs.disk.transaction.Batch;
 import io.patriciadb.fs.disk.utils.LongLongPair;
 import io.patriciadb.utils.lifecycle.PatriciaController;
 import org.eclipse.collections.api.LongIterable;
 import org.eclipse.collections.impl.map.mutable.primitive.LongLongHashMap;
+import org.roaringbitmap.longlong.Roaring64NavigableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -105,9 +107,17 @@ public class DiskMMapDirectory implements DiskDirectory, PatriciaController {
     }
 
     @Override
-    public synchronized void set(LongLongHashMap changeMap) {
+    public synchronized void set(Batch changeMap) {
         checkState();
-        for (var entry : changeMap.keyValuesView()) {
+        changeMap.getDeletedBlocks().forEach(this::clear);
+        changeMap.getNewBlocks().forEachKeyValue(this::set);
+        changeMap.getUpdatedBlocks().forEachKeyValue(this::set);
+    }
+
+    @Override
+    public synchronized void set(LongLongHashMap batch) throws DirectoryError {
+        checkState();
+        for (var entry : batch.keyValuesView()) {
             long k = entry.getOne();
             long v = entry.getTwo();
             if (v == 0) {
@@ -144,6 +154,12 @@ public class DiskMMapDirectory implements DiskDirectory, PatriciaController {
         LongLongHashMap map = new LongLongHashMap();
         ids.forEach(id -> map.put(id, get(id)));
         return map;
+    }
+
+    public synchronized void forEach(Roaring64NavigableMap bitmap, BlockIdConsumer consumer) {
+        bitmap.forEach(blockId -> {
+            consumer.consume(blockId, get(blockId));
+        });
     }
 
     private void clear(long blockId) throws DirectoryError {
